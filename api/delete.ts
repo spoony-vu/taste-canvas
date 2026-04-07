@@ -18,6 +18,7 @@ async function writeManifest(data: Manifest): Promise<void> {
     access: "public",
     contentType: "application/json",
     addRandomSuffix: false,
+    allowOverwrite: true,
   });
 }
 

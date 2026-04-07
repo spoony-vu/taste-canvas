@@ -1,14 +1,14 @@
 /**
  * Push local taste-canvas items to Vercel Blob.
- * Uploads all images and writes the manifest.
+ * Uploads all images + generates WebP thumbnails, writes manifest.
  *
- * Usage: BLOB_READ_WRITE_TOKEN=xxx npm run push
- * Or:    source .env.local && npm run push
+ * Usage: source .env.local && npm run push
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import { put } from "@vercel/blob";
+import sharp from "sharp";
 import type { Manifest, TasteItem } from "../src/lib/types.js";
 
 const TASTE_DIR = path.join(
@@ -23,6 +23,13 @@ if (!process.env.BLOB_READ_WRITE_TOKEN) {
   process.exit(1);
 }
 
+async function generateThumb(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .resize(600, undefined, { withoutEnlargement: true })
+    .webp({ quality: 75 })
+    .toBuffer();
+}
+
 async function main() {
   const manifest: Manifest = JSON.parse(fs.readFileSync(LOCAL_MANIFEST, "utf-8"));
   console.log(`Pushing ${manifest.items.length} items to Vercel Blob...`);
@@ -30,44 +37,75 @@ async function main() {
   const updated: TasteItem[] = [];
 
   for (const item of manifest.items) {
-    // Skip items that already have Blob URLs
+    // Skip items that already have Blob URLs with thumbs
+    if (item.image.startsWith("http") && item.thumb) {
+      console.log(`  Skip (done): ${item.title}`);
+      updated.push(item);
+      continue;
+    }
+
+    // Determine source buffer
+    let buffer: Buffer;
+    let blobImageUrl: string;
+
     if (item.image.startsWith("http")) {
-      console.log(`  Skip (already blob): ${item.title}`);
-      updated.push(item);
-      continue;
+      // Already uploaded but needs thumb — download it
+      console.log(`  Generating thumb: ${item.title}`);
+      const res = await fetch(item.image);
+      buffer = Buffer.from(await res.arrayBuffer());
+      blobImageUrl = item.image;
+    } else {
+      // Local file — upload full image
+      const localPath = path.join(TASTE_DIR, item.image);
+      if (!fs.existsSync(localPath)) {
+        console.warn(`  Warning: missing file for "${item.title}": ${item.image}`);
+        updated.push(item);
+        continue;
+      }
+      buffer = fs.readFileSync(localPath);
+      const ext = path.extname(localPath).slice(1);
+      const contentType = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : `image/${ext}`;
+      const blobPath = `taste/${item.image}`;
+
+      console.log(`  Uploading: ${item.title} (${(buffer.length / 1024).toFixed(0)}KB)`);
+      const { url } = await put(blobPath, buffer, {
+        access: "public",
+        contentType,
+        addRandomSuffix: false,
+        allowOverwrite: true,
+      });
+      blobImageUrl = url;
     }
 
-    const localPath = path.join(TASTE_DIR, item.image);
-    if (!fs.existsSync(localPath)) {
-      console.warn(`  Warning: missing file for "${item.title}": ${item.image}`);
-      updated.push(item);
-      continue;
-    }
+    // Generate and upload thumbnail
+    const thumbBuf = await generateThumb(buffer);
+    const thumbName = item.image.startsWith("http")
+      ? item.image.replace(/\.[^.]+$/, ".thumb.webp").split("/").pop()!
+      : item.image.replace(/\.[^.]+$/, ".thumb.webp");
+    const thumbBlobPath = item.image.startsWith("http")
+      ? `taste/${thumbName}`
+      : `taste/${thumbName}`;
 
-    const buffer = fs.readFileSync(localPath);
-    const ext = path.extname(localPath).slice(1);
-    const contentType = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : `image/${ext}`;
-    const blobPath = `taste/${item.image}`;
-
-    console.log(`  Uploading: ${item.title} (${(buffer.length / 1024).toFixed(0)}KB) → ${blobPath}`);
-    const { url } = await put(blobPath, buffer, {
+    const { url: thumbUrl } = await put(thumbBlobPath, thumbBuf, {
       access: "public",
-      contentType,
+      contentType: "image/webp",
       addRandomSuffix: false,
+      allowOverwrite: true,
     });
 
-    updated.push({ ...item, image: url });
+    console.log(`    Thumb: ${(thumbBuf.length / 1024).toFixed(0)}KB`);
+    updated.push({ ...item, image: blobImageUrl, thumb: thumbUrl });
   }
 
-  // Write manifest to Blob
   const blobManifest: Manifest = { items: updated };
   await put(MANIFEST_KEY, JSON.stringify(blobManifest, null, 2), {
     access: "public",
     contentType: "application/json",
     addRandomSuffix: false,
+    allowOverwrite: true,
   });
 
-  console.log(`Done. ${updated.length} items pushed to Vercel Blob.`);
+  console.log(`Done. ${updated.length} items pushed with thumbnails.`);
 }
 
 main().catch((err) => {

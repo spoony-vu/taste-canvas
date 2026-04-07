@@ -13,6 +13,7 @@ export interface TasteItem {
   title: string;
   url: string;
   image: string;
+  thumb?: string;
   category: Category;
   tags: string[];
   added: string;

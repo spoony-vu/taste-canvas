@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { put, del, list } from "@vercel/blob";
 import type { Manifest } from "../src/lib/types.js";
+import { generateThumbnail, thumbFilename } from "./thumbnail.js";
 
 const VAULT_TASTE_DIR = path.join(
   process.env.HOME ?? "~",
@@ -58,6 +59,7 @@ async function blobWriteManifest(data: Manifest): Promise<void> {
     access: "public",
     contentType: "application/json",
     addRandomSuffix: false,
+    allowOverwrite: true,
   });
 }
 
@@ -72,6 +74,7 @@ async function blobUploadImage(
     access: "public",
     contentType,
     addRandomSuffix: false,
+    allowOverwrite: true,
   });
   return url;
 }
@@ -102,11 +105,18 @@ export const storage = {
     filename: string,
     buffer: Buffer,
     contentType = "image/png"
-  ): Promise<string> {
+  ): Promise<{ image: string; thumb: string }> {
+    const thumbBuf = await generateThumbnail(buffer);
+    const thumbName = thumbFilename(filename);
+
     if (isBlob) {
-      return blobUploadImage(category, filename, buffer, contentType);
+      const image = await blobUploadImage(category, filename, buffer, contentType);
+      const thumb = await blobUploadImage(category, thumbName, thumbBuf, "image/webp");
+      return { image, thumb };
     }
-    return localUploadImage(category, filename, buffer);
+    const image = localUploadImage(category, filename, buffer);
+    const thumb = localUploadImage(category, thumbName, thumbBuf);
+    return { image, thumb };
   },
 
   async deleteImage(imagePath: string): Promise<void> {

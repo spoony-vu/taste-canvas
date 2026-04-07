@@ -5,6 +5,7 @@ import path from "node:path";
 import multer from "multer";
 import { captureScreenshot } from "./screenshot.js";
 import { storage, isBlob } from "./storage.js";
+import { generateThumbnail, thumbFilename } from "./thumbnail.js";
 
 const app = express();
 const PORT = 3002;
@@ -79,6 +80,12 @@ app.post("/api/screenshot", async (req, res) => {
 
     await captureScreenshot(url, outputPath);
 
+    // Generate thumbnail
+    const imgBuf = fs.readFileSync(outputPath);
+    const thumbBuf = await generateThumbnail(imgBuf);
+    const thumbName = thumbFilename(filename);
+    fs.writeFileSync(path.join(storage.vaultDir, category, thumbName), thumbBuf);
+
     const manifest = await storage.readManifest();
     const id = crypto.randomUUID().slice(0, 8);
     const item = {
@@ -86,6 +93,7 @@ app.post("/api/screenshot", async (req, res) => {
       title,
       url,
       image: `${category}/${filename}`,
+      thumb: `${category}/${thumbName}`,
       category,
       tags: tags ?? [],
       added: date,
@@ -121,7 +129,7 @@ app.post("/api/upload", upload.single("image"), async (req, res) => {
   const ext = file.originalname.split(".").pop() ?? "png";
   const filename = `${slug}-${date}.${ext}`;
 
-  const imagePath = await storage.uploadImage(
+  const { image: imagePath, thumb: thumbPath } = await storage.uploadImage(
     category,
     filename,
     file.buffer,
@@ -135,6 +143,7 @@ app.post("/api/upload", upload.single("image"), async (req, res) => {
     title,
     url: url ?? "",
     image: imagePath,
+    thumb: thumbPath,
     category,
     tags: tags ? JSON.parse(tags) : [],
     added: date,

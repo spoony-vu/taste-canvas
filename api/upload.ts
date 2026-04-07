@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { put, list } from "@vercel/blob";
+import sharp from "sharp";
 import { isAuthorized } from "./_auth.js";
 import type { Manifest, TasteItem } from "../src/lib/types.js";
 
@@ -18,6 +19,7 @@ async function writeManifest(data: Manifest): Promise<void> {
     access: "public",
     contentType: "application/json",
     addRandomSuffix: false,
+    allowOverwrite: true,
   });
 }
 
@@ -99,6 +101,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     access: "public",
     contentType: imageContentType,
     addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+
+  // Generate and upload thumbnail
+  const thumbBuf = await sharp(imageBuffer)
+    .resize(600, undefined, { withoutEnlargement: true })
+    .webp({ quality: 75 })
+    .toBuffer();
+  const thumbPath = `taste/${category}/${slug}-${date}.thumb.webp`;
+  const { url: thumbUrl } = await put(thumbPath, thumbBuf, {
+    access: "public",
+    contentType: "image/webp",
+    addRandomSuffix: false,
+    allowOverwrite: true,
   });
 
   const manifest = await readManifest();
@@ -108,6 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     title,
     url,
     image: blobUrl,
+    thumb: thumbUrl,
     category: category as TasteItem["category"],
     tags,
     added: date,

@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { categoryMap } from "../lib/categories";
-import { imageUrl } from "../lib/image";
+import { thumbUrl } from "../lib/image";
 import type { TasteItem } from "../lib/types";
 
 interface TasteCardProps {
@@ -30,7 +30,7 @@ export function TasteCard({ item, index, onDelete, onZoom }: TasteCardProps) {
       >
         <div className="relative overflow-hidden">
           <img
-            src={imageUrl(item.image)}
+            src={thumbUrl(item.thumb, item.image)}
             alt={item.title}
             loading="lazy"
             className="block w-full transition-transform duration-250 ease-out group-hover:scale-[1.02]"
