@@ -1,18 +1,31 @@
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { categories } from "../lib/categories";
-import type { Category } from "../lib/types";
+import type { Category, TasteItem } from "../lib/types";
 
 interface FilterBarProps {
   active: Set<Category>;
+  items: TasteItem[];
+  filteredCount: number;
   onToggle: (cat: Category) => void;
   onClear: () => void;
 }
 
-export function FilterBar({ active, onToggle, onClear }: FilterBarProps) {
+export function FilterBar({ active, items, filteredCount, onToggle, onClear }: FilterBarProps) {
   const allActive = active.size === 0;
 
+  const counts = useMemo(() => {
+    const map: Partial<Record<Category, number>> = {};
+    for (const item of items) {
+      map[item.category] = (map[item.category] ?? 0) + 1;
+    }
+    return map;
+  }, [items]);
+
+  const visibleCategories = categories.filter((cat) => (counts[cat.id] ?? 0) > 0);
+
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <button
         onClick={onClear}
         className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-150"
@@ -27,8 +40,9 @@ export function FilterBar({ active, onToggle, onClear }: FilterBarProps) {
       >
         All
       </button>
-      {categories.map((cat) => {
+      {visibleCategories.map((cat) => {
         const isActive = active.has(cat.id);
+        const count = counts[cat.id] ?? 0;
         return (
           <motion.button
             key={cat.id}
@@ -52,9 +66,21 @@ export function FilterBar({ active, onToggle, onClear }: FilterBarProps) {
               }}
             />
             {cat.label}
+            <span
+              className="text-[11px] opacity-50"
+              style={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              {count}
+            </span>
           </motion.button>
         );
       })}
+      <span
+        className="ml-auto text-[12px]"
+        style={{ color: "var(--color-text-tertiary)", fontVariantNumeric: "tabular-nums" }}
+      >
+        {filteredCount} item{filteredCount !== 1 ? "s" : ""}
+      </span>
     </div>
   );
 }

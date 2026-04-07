@@ -36,7 +36,7 @@ export function SearchInput({ value, onChange }: SearchInputProps) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search..."
-        className="h-9 w-48 rounded-lg border-none px-3 text-[13px] outline-none transition-all duration-200 placeholder:text-text-tertiary focus:w-64"
+        className="h-9 w-56 rounded-lg border-none px-3 text-[13px] outline-none transition-colors duration-200 placeholder:text-text-tertiary"
         style={{
           background: "var(--color-surface-1)",
           color: "var(--color-text-primary)",

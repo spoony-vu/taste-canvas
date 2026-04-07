@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { FilterBar } from "./components/FilterBar";
 import { SearchInput } from "./components/SearchInput";
 import { CardGrid } from "./components/CardGrid";
@@ -7,16 +7,19 @@ import { AddModal } from "./components/AddModal";
 import { ImageUploadModal } from "./components/ImageUploadModal";
 import { Lightbox } from "./components/Lightbox";
 import { DropZone } from "./components/DropZone";
+import { UndoToast } from "./components/UndoToast";
 import { useManifest } from "./hooks/useManifest";
 import type { Category, TasteItem } from "./lib/types";
 
 export default function App() {
-  const { manifest, loading, addItem, removeItem } = useManifest();
+  const { manifest, loading, addItem, removeItem, confirmDelete, restoreItem } = useManifest();
   const [activeFilters, setActiveFilters] = useState<Set<Category>>(new Set());
   const [search, setSearch] = useState("");
   const [urlModalOpen, setUrlModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [lightboxItem, setLightboxItem] = useState<TasteItem | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<TasteItem | null>(null);
+  const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const toggleFilter = useCallback((cat: Category) => {
     setActiveFilters((prev) => {
@@ -30,6 +33,31 @@ export default function App() {
   const clearFilters = useCallback(() => {
     setActiveFilters(new Set());
   }, []);
+
+  const handleDelete = useCallback((id: string) => {
+    // If there's already a pending delete, confirm it immediately
+    if (pendingDelete) {
+      confirmDelete(pendingDelete.id);
+      clearTimeout(pendingTimerRef.current);
+    }
+    const removed = removeItem(id);
+    if (removed) setPendingDelete(removed);
+  }, [pendingDelete, removeItem, confirmDelete]);
+
+  const handleUndo = useCallback(() => {
+    if (pendingDelete) {
+      restoreItem(pendingDelete);
+      setPendingDelete(null);
+      clearTimeout(pendingTimerRef.current);
+    }
+  }, [pendingDelete, restoreItem]);
+
+  const handleExpire = useCallback(() => {
+    if (pendingDelete) {
+      confirmDelete(pendingDelete.id);
+      setPendingDelete(null);
+    }
+  }, [pendingDelete, confirmDelete]);
 
   const filtered = useMemo(() => {
     let items = manifest.items;
@@ -50,19 +78,14 @@ export default function App() {
     return items;
   }, [manifest.items, activeFilters, search]);
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <p style={{ color: "var(--color-text-tertiary)" }}>Loading...</p>
-      </div>
-    );
-  }
-
   return (
     <DropZone onAdd={addItem}>
     <div className="min-h-screen px-6 pb-12 pt-6">
       <header className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="text-[20px] font-semibold tracking-tight">
+        <h1
+          className="text-[24px] italic tracking-tight"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
           Taste Canvas
         </h1>
         <div className="flex items-center gap-3">
@@ -77,22 +100,20 @@ export default function App() {
       <div className="mb-6">
         <FilterBar
           active={activeFilters}
+          items={manifest.items}
+          filteredCount={filtered.length}
           onToggle={toggleFilter}
           onClear={clearFilters}
         />
       </div>
 
-      <div
-        className="mb-3 text-[12px]"
-        style={{ color: "var(--color-text-tertiary)" }}
-      >
-        {filtered.length} item{filtered.length !== 1 ? "s" : ""}
-      </div>
-
       <CardGrid
         items={filtered}
-        onDelete={removeItem}
+        loading={loading}
+        totalCount={manifest.items.length}
+        onDelete={handleDelete}
         onZoom={setLightboxItem}
+        onClearFilters={clearFilters}
       />
 
       <AddModal
@@ -110,6 +131,12 @@ export default function App() {
       <Lightbox
         item={lightboxItem}
         onClose={() => setLightboxItem(null)}
+      />
+
+      <UndoToast
+        title={pendingDelete?.title ?? null}
+        onUndo={handleUndo}
+        onExpire={handleExpire}
       />
     </div>
     </DropZone>

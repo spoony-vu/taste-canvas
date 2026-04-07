@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { categoryMap } from "../lib/categories";
 import { imageUrl, thumbUrl } from "../lib/image";
 import type { TasteItem } from "../lib/types";
@@ -13,6 +13,8 @@ export function Lightbox({ item, onClose }: LightboxProps) {
   const [isTall, setIsTall] = useState(false);
   const [src, setSrc] = useState("");
   const imgRef = useRef<HTMLImageElement>(null);
+  const reduced = useReducedMotion();
+  const dur = reduced ? 0 : 0.2;
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
@@ -57,9 +59,9 @@ export function Lightbox({ item, onClose }: LightboxProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: dur }}
             className="fixed inset-0 z-50"
-            style={{ background: "oklch(0.06 0.01 260 / 0.92)" }}
+            style={{ background: "oklch(0.06 0.01 260 / 0.95)" }}
             onClick={onClose}
           />
 
@@ -69,7 +71,7 @@ export function Lightbox({ item, onClose }: LightboxProps) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 16 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: reduced ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }}
               className="fixed inset-0 z-50 overflow-y-auto scrollbar-none"
               onClick={onClose}
             >
@@ -107,8 +109,8 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                       {cat.label}
                     </span>
                     <span
-                      className="text-[14px] font-medium"
-                      style={{ color: "var(--color-text-primary)" }}
+                      className="text-[16px]"
+                      style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-display)" }}
                     >
                       {item.title}
                     </span>
@@ -140,7 +142,7 @@ export function Lightbox({ item, onClose }: LightboxProps) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: reduced ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }}
               className="fixed inset-4 z-50 flex items-center justify-center"
               onClick={onClose}
             >
@@ -171,8 +173,8 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                     {cat.label}
                   </span>
                   <span
-                    className="text-[14px] font-medium"
-                    style={{ color: "var(--color-text-primary)" }}
+                    className="text-[16px]"
+                    style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-display)" }}
                   >
                     {item.title}
                   </span>

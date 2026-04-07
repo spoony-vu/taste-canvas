@@ -9,6 +9,7 @@
   --color-text-secondary: oklch(0.65 0.01 260);
   --color-text-tertiary: oklch(0.45 0.01 260);
   --color-border: oklch(0.25 0.01 260);
+  --font-display: "Instrument Serif", serif;
 }
 
 * {
@@ -25,7 +26,6 @@ body {
   background: var(--color-surface-0);
   color: var(--color-text-primary);
   font-family:
-    "Inter",
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -61,8 +61,32 @@ body {
   }
 }
 
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-1) 0%,
+    var(--color-surface-2) 40%,
+    var(--color-surface-1) 80%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
 @media (max-width: 560px) {
   .masonry {
     columns: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

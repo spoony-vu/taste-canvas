@@ -20,7 +20,6 @@ export function useManifest() {
 
   useEffect(() => {
     if (cachedManifest) {
-      // Show cached immediately, refetch in background
       setManifest(cachedManifest);
       setLoading(false);
       fetchManifest();
@@ -38,17 +37,33 @@ export function useManifest() {
     [manifest]
   );
 
+  /** Optimistically remove item from state. Returns the removed item for undo. */
   const removeItem = useCallback(
-    async (id: string) => {
-      await fetch(`/api/manifest/${id}`, { method: "DELETE" });
+    (id: string): TasteItem | undefined => {
+      const item = manifest.items.find((i) => i.id === id);
       setManifest((prev) => {
-        const next = { items: prev.items.filter((item) => item.id !== id) };
+        const next = { items: prev.items.filter((i) => i.id !== id) };
         cachedManifest = next;
         return next;
       });
+      return item;
     },
-    []
+    [manifest.items]
   );
 
-  return { manifest, loading, addItem, removeItem, refetch: fetchManifest };
+  /** Fire the actual DELETE API call. */
+  const confirmDelete = useCallback(async (id: string) => {
+    await fetch(`/api/manifest/${id}`, { method: "DELETE" });
+  }, []);
+
+  /** Re-insert an item at its original position (best-effort: prepend). */
+  const restoreItem = useCallback((item: TasteItem) => {
+    setManifest((prev) => {
+      const next = { items: [item, ...prev.items] };
+      cachedManifest = next;
+      return next;
+    });
+  }, []);
+
+  return { manifest, loading, addItem, removeItem, confirmDelete, restoreItem, refetch: fetchManifest };
 }
