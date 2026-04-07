@@ -5,7 +5,7 @@ import path from "node:path";
 import multer from "multer";
 import { captureScreenshot } from "./screenshot.js";
 import { storage, isBlob } from "./storage.js";
-import { generateThumbnail, thumbFilename } from "./thumbnail.js";
+import { generateThumbnail, generateLqip, thumbFilename } from "./thumbnail.js";
 
 const app = express();
 const PORT = 3002;
@@ -57,6 +57,70 @@ app.get("/api/images/:category/:filename", (req, res) => {
   res.sendFile(filePath);
 });
 
+// GET meta — fetch title/og:title from URL (lightweight, no browser)
+app.get("/api/meta", async (req, res) => {
+  const url = req.query.url as string | undefined;
+  if (!url) {
+    res.status(400).json({ error: "Missing url parameter" });
+    return;
+  }
+
+  try {
+    new URL(url);
+  } catch {
+    res.status(400).json({ error: "Invalid URL" });
+    return;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; TasteCanvas/1.0)",
+        Accept: "text/html",
+      },
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      res.status(502).json({ error: `Upstream returned ${response.status}` });
+      return;
+    }
+
+    const text = await response.text();
+    const head = text.slice(0, 20_000);
+
+    const ogTitle = head.match(
+      /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i
+    )?.[1];
+    const ogDescription = head.match(
+      /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i
+    )?.[1];
+    const htmlTitle = head.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1];
+
+    const decode = (s: string) =>
+      s
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'")
+        .replace(/&#x27;/g, "'")
+        .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+        .trim();
+
+    res.json({
+      title: decode(ogTitle ?? htmlTitle ?? ""),
+      description: decode(ogDescription ?? ""),
+    });
+  } catch (err) {
+    res.status(502).json({ error: String(err) });
+  }
+});
+
 // POST screenshot — capture URL, save to vault, add to manifest (local only)
 app.post("/api/screenshot", async (req, res) => {
   if (isBlob) {
@@ -64,10 +128,10 @@ app.post("/api/screenshot", async (req, res) => {
     return;
   }
 
-  const { url, title, category, tags } = req.body;
+  const { url, title: providedTitle, category, tags } = req.body;
 
-  if (!url || !title || !category) {
-    res.status(400).json({ error: "Missing url, title, or category" });
+  if (!url || !category) {
+    res.status(400).json({ error: "Missing url or category" });
     return;
   }
 
@@ -78,11 +142,15 @@ app.post("/api/screenshot", async (req, res) => {
     const filename = `${slug}-${date}.png`;
     const outputPath = path.join(storage.vaultDir, category, filename);
 
-    await captureScreenshot(url, outputPath);
+    const meta = await captureScreenshot(url, outputPath);
+    const title = providedTitle || meta.title || hostname;
 
-    // Generate thumbnail
+    // Generate thumbnail + LQIP
     const imgBuf = fs.readFileSync(outputPath);
-    const thumbBuf = await generateThumbnail(imgBuf);
+    const [thumbBuf, lqip] = await Promise.all([
+      generateThumbnail(imgBuf),
+      generateLqip(imgBuf),
+    ]);
     const thumbName = thumbFilename(filename);
     fs.writeFileSync(path.join(storage.vaultDir, category, thumbName), thumbBuf);
 
@@ -94,6 +162,7 @@ app.post("/api/screenshot", async (req, res) => {
       url,
       image: `${category}/${filename}`,
       thumb: `${category}/${thumbName}`,
+      lqip,
       category,
       tags: tags ?? [],
       added: date,
@@ -129,7 +198,7 @@ app.post("/api/upload", upload.single("image"), async (req, res) => {
   const ext = file.originalname.split(".").pop() ?? "png";
   const filename = `${slug}-${date}.${ext}`;
 
-  const { image: imagePath, thumb: thumbPath } = await storage.uploadImage(
+  const { image: imagePath, thumb: thumbPath, lqip } = await storage.uploadImage(
     category,
     filename,
     file.buffer,
@@ -144,6 +213,7 @@ app.post("/api/upload", upload.single("image"), async (req, res) => {
     url: url ?? "",
     image: imagePath,
     thumb: thumbPath,
+    lqip,
     category,
     tags: tags ? JSON.parse(tags) : [],
     added: date,

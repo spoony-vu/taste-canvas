@@ -1,6 +1,6 @@
 /**
  * Push local taste-canvas items to Vercel Blob.
- * Uploads all images + generates WebP thumbnails, writes manifest.
+ * Uploads all images + generates WebP thumbnails + LQIP, writes manifest.
  *
  * Usage: source .env.local && npm run push
  */
@@ -18,6 +18,10 @@ const TASTE_DIR = path.join(
 const LOCAL_MANIFEST = path.join(TASTE_DIR, "manifest.json");
 const MANIFEST_KEY = "taste/manifest.json";
 
+const THUMB_WIDTH = 400;
+const THUMB_QUALITY = 65;
+const LQIP_WIDTH = 20;
+
 if (!process.env.BLOB_READ_WRITE_TOKEN) {
   console.error("Missing BLOB_READ_WRITE_TOKEN. Run: source .env.local && npm run push");
   process.exit(1);
@@ -25,9 +29,17 @@ if (!process.env.BLOB_READ_WRITE_TOKEN) {
 
 async function generateThumb(buffer: Buffer): Promise<Buffer> {
   return sharp(buffer)
-    .resize(600, undefined, { withoutEnlargement: true })
-    .webp({ quality: 75 })
+    .resize(THUMB_WIDTH, undefined, { withoutEnlargement: true })
+    .webp({ quality: THUMB_QUALITY })
     .toBuffer();
+}
+
+async function generateLqip(buffer: Buffer): Promise<string> {
+  const tiny = await sharp(buffer)
+    .resize(LQIP_WIDTH, undefined, { withoutEnlargement: true })
+    .webp({ quality: 20 })
+    .toBuffer();
+  return `data:image/webp;base64,${tiny.toString("base64")}`;
 }
 
 async function main() {
@@ -37,8 +49,8 @@ async function main() {
   const updated: TasteItem[] = [];
 
   for (const item of manifest.items) {
-    // Skip items that already have Blob URLs with thumbs
-    if (item.image.startsWith("http") && item.thumb) {
+    // Skip items that already have Blob URLs with thumbs AND lqip
+    if (item.image.startsWith("http") && item.thumb && item.lqip) {
       console.log(`  Skip (done): ${item.title}`);
       updated.push(item);
       continue;
@@ -49,8 +61,8 @@ async function main() {
     let blobImageUrl: string;
 
     if (item.image.startsWith("http")) {
-      // Already uploaded but needs thumb — download it
-      console.log(`  Generating thumb: ${item.title}`);
+      // Already uploaded but needs thumb/lqip — download it
+      console.log(`  Regenerating: ${item.title}`);
       const res = await fetch(item.image);
       buffer = Buffer.from(await res.arrayBuffer());
       blobImageUrl = item.image;
@@ -77,14 +89,15 @@ async function main() {
       blobImageUrl = url;
     }
 
-    // Generate and upload thumbnail
-    const thumbBuf = await generateThumb(buffer);
+    // Generate thumbnail + LQIP
+    const [thumbBuf, lqip] = await Promise.all([
+      generateThumb(buffer),
+      generateLqip(buffer),
+    ]);
     const thumbName = item.image.startsWith("http")
       ? item.image.replace(/\.[^.]+$/, ".thumb.webp").split("/").pop()!
       : item.image.replace(/\.[^.]+$/, ".thumb.webp");
-    const thumbBlobPath = item.image.startsWith("http")
-      ? `taste/${thumbName}`
-      : `taste/${thumbName}`;
+    const thumbBlobPath = `taste/${thumbName}`;
 
     const { url: thumbUrl } = await put(thumbBlobPath, thumbBuf, {
       access: "public",
@@ -93,8 +106,8 @@ async function main() {
       allowOverwrite: true,
     });
 
-    console.log(`    Thumb: ${(thumbBuf.length / 1024).toFixed(0)}KB`);
-    updated.push({ ...item, image: blobImageUrl, thumb: thumbUrl });
+    console.log(`    Thumb: ${(thumbBuf.length / 1024).toFixed(0)}KB | LQIP: ${lqip.length}B`);
+    updated.push({ ...item, image: blobImageUrl, thumb: thumbUrl, lqip });
   }
 
   const blobManifest: Manifest = { items: updated };
@@ -105,7 +118,7 @@ async function main() {
     allowOverwrite: true,
   });
 
-  console.log(`Done. ${updated.length} items pushed with thumbnails.`);
+  console.log(`Done. ${updated.length} items pushed with thumbnails + LQIP.`);
 }
 
 main().catch((err) => {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { categories } from "../lib/categories";
+import { useUpload } from "../hooks/useUpload";
 import type { Category, TasteItem } from "../lib/types";
 
 interface ImageUploadModalProps {
@@ -16,8 +17,17 @@ export function ImageUploadModal({ open, onClose, onAdd }: ImageUploadModalProps
   const [category, setCategory] = useState<Category>("ui");
   const [url, setUrl] = useState("");
   const [tags, setTags] = useState("");
-  const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const { uploading, upload } = useUpload(
+    useCallback(
+      (item: TasteItem) => {
+        onAdd(item);
+        onClose();
+      },
+      [onAdd, onClose]
+    )
+  );
 
   useEffect(() => {
     if (open) {
@@ -57,37 +67,10 @@ export function ImageUploadModal({ open, onClose, onAdd }: ImageUploadModalProps
     setTitle(name);
   }, [onClose]);
 
-  const handleUpload = useCallback(async () => {
+  const handleUpload = useCallback(() => {
     if (!file || !title) return;
-    setUploading(true);
-
-    const form = new FormData();
-    form.append("image", file);
-    form.append("title", title);
-    form.append("category", category);
-    form.append("url", url);
-    form.append(
-      "tags",
-      JSON.stringify(
-        tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean)
-      )
-    );
-
-    try {
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      if (!res.ok) throw new Error("Upload failed");
-      const item = await res.json();
-      onAdd(item);
-      onClose();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setUploading(false);
-    }
-  }, [file, title, category, url, tags, onAdd, onClose]);
+    upload({ file, title, category, url, tags });
+  }, [file, title, category, url, tags, upload]);
 
   return (
     <>

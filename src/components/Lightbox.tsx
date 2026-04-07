@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { categoryMap } from "../lib/categories";
-import { imageUrl } from "../lib/image";
+import { imageUrl, thumbUrl } from "../lib/image";
 import type { TasteItem } from "../lib/types";
 
 interface LightboxProps {
@@ -11,6 +11,7 @@ interface LightboxProps {
 
 export function Lightbox({ item, onClose }: LightboxProps) {
   const [isTall, setIsTall] = useState(false);
+  const [src, setSrc] = useState("");
   const imgRef = useRef<HTMLImageElement>(null);
 
   const handleKey = useCallback(
@@ -25,6 +26,12 @@ export function Lightbox({ item, onClose }: LightboxProps) {
       window.addEventListener("keydown", handleKey);
       document.body.style.overflow = "hidden";
       setIsTall(false);
+      // Start with thumbnail, then load full-res in background
+      setSrc(thumbUrl(item.thumb, item.image));
+      const fullSrc = imageUrl(item.image);
+      const img = new Image();
+      img.onload = () => setSrc(fullSrc);
+      img.src = fullSrc;
     }
     return () => {
       window.removeEventListener("keydown", handleKey);
@@ -41,7 +48,6 @@ export function Lightbox({ item, onClose }: LightboxProps) {
 
   const cat = item ? categoryMap[item.category] : null;
   const hasUrl = item?.url && item.url.length > 0;
-  const src = item ? imageUrl(item.image) : "";
 
   return (
     <AnimatePresence>

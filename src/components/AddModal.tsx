@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { categories } from "../lib/categories";
 import type { Category, TasteItem } from "../lib/types";
@@ -15,6 +15,7 @@ export function AddModal({ open, onClose, onAdd }: AddModalProps) {
   const [category, setCategory] = useState<Category>("landing-pages");
   const [tags, setTags] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fetchingTitle, setFetchingTitle] = useState(false);
   const [error, setError] = useState("");
   const urlRef = useRef<HTMLInputElement>(null);
 
@@ -31,8 +32,29 @@ export function AddModal({ open, onClose, onAdd }: AddModalProps) {
       setCategory("landing-pages");
       setTags("");
       setError("");
+      setFetchingTitle(false);
     }
   }, [open]);
+
+  const handleUrlBlur = useCallback(async () => {
+    if (!url || title) return;
+    try {
+      new URL(url);
+    } catch {
+      return;
+    }
+    setFetchingTitle(true);
+    try {
+      const res = await fetch(`/api/meta?url=${encodeURIComponent(url)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.title && !title) setTitle(data.title);
+    } catch {
+      // Silently fail — user can type title manually
+    } finally {
+      setFetchingTitle(false);
+    }
+  }, [url, title]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -44,7 +66,7 @@ export function AddModal({ open, onClose, onAdd }: AddModalProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!url || !title) return;
+    if (!url) return;
 
     setLoading(true);
     setError("");
@@ -114,6 +136,7 @@ export function AddModal({ open, onClose, onAdd }: AddModalProps) {
                 type="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
+                onBlur={handleUrlBlur}
                 placeholder="https://example.com"
                 required
                 className="h-10 rounded-lg border-none px-3 text-[14px] outline-none"
@@ -126,8 +149,7 @@ export function AddModal({ open, onClose, onAdd }: AddModalProps) {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Title"
-                required
+                placeholder={fetchingTitle ? "Fetching title..." : "Title (auto-filled from URL)"}
                 className="h-10 rounded-lg border-none px-3 text-[14px] outline-none"
                 style={{
                   background: "var(--color-surface-0)",
@@ -179,7 +201,7 @@ export function AddModal({ open, onClose, onAdd }: AddModalProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !url || !title}
+                  disabled={loading || !url}
                   className="rounded-lg px-4 py-2 text-[13px] font-medium transition-colors duration-150 disabled:opacity-40"
                   style={{
                     background: "var(--color-text-primary)",

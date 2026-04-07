@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { categories } from "../lib/categories";
+import { useUpload } from "../hooks/useUpload";
 import type { Category, TasteItem } from "../lib/types";
 
 interface DropZoneProps {
@@ -20,8 +21,26 @@ export function DropZone({ children, onAdd }: DropZoneProps) {
   const [category, setCategory] = useState<Category>("ui");
   const [url, setUrl] = useState("");
   const [tags, setTags] = useState("");
-  const [uploading, setUploading] = useState(false);
   const dragCounter = useRef(0);
+
+  const handleClose = useCallback(() => {
+    if (pending) URL.revokeObjectURL(pending.preview);
+    setPending(null);
+    setTitle("");
+    setCategory("ui");
+    setUrl("");
+    setTags("");
+  }, [pending]);
+
+  const { uploading, upload } = useUpload(
+    useCallback(
+      (item: TasteItem) => {
+        onAdd(item);
+        handleClose();
+      },
+      [onAdd, handleClose]
+    )
+  );
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -54,51 +73,14 @@ export function DropZone({ children, onAdd }: DropZoneProps) {
 
     const preview = URL.createObjectURL(imageFile);
     setPending({ file: imageFile, preview });
-    // Auto-fill title from filename
     const name = imageFile.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ");
     setTitle(name);
   }, []);
 
-  const handleUpload = useCallback(async () => {
+  const handleUpload = useCallback(() => {
     if (!pending || !title) return;
-    setUploading(true);
-
-    const form = new FormData();
-    form.append("image", pending.file);
-    form.append("title", title);
-    form.append("category", category);
-    form.append("url", url);
-    form.append(
-      "tags",
-      JSON.stringify(
-        tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean)
-      )
-    );
-
-    try {
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      if (!res.ok) throw new Error("Upload failed");
-      const item = await res.json();
-      onAdd(item);
-      handleClose();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setUploading(false);
-    }
-  }, [pending, title, category, url, tags, onAdd]);
-
-  const handleClose = useCallback(() => {
-    if (pending) URL.revokeObjectURL(pending.preview);
-    setPending(null);
-    setTitle("");
-    setCategory("ui");
-    setUrl("");
-    setTags("");
-  }, [pending]);
+    upload({ file: pending.file, title, category, url, tags });
+  }, [pending, title, category, url, tags, upload]);
 
   return (
     <div

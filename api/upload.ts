@@ -104,11 +104,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     allowOverwrite: true,
   });
 
-  // Generate and upload thumbnail
-  const thumbBuf = await sharp(imageBuffer)
-    .resize(600, undefined, { withoutEnlargement: true })
-    .webp({ quality: 75 })
-    .toBuffer();
+  // Generate thumbnail + LQIP
+  const [thumbBuf, lqipTiny] = await Promise.all([
+    sharp(imageBuffer)
+      .resize(400, undefined, { withoutEnlargement: true })
+      .webp({ quality: 65 })
+      .toBuffer(),
+    sharp(imageBuffer)
+      .resize(20, undefined, { withoutEnlargement: true })
+      .webp({ quality: 20 })
+      .toBuffer(),
+  ]);
+  const lqip = `data:image/webp;base64,${lqipTiny.toString("base64")}`;
   const thumbPath = `taste/${category}/${slug}-${date}.thumb.webp`;
   const { url: thumbUrl } = await put(thumbPath, thumbBuf, {
     access: "public",
@@ -125,6 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     url,
     image: blobUrl,
     thumb: thumbUrl,
+    lqip,
     category: category as TasteItem["category"],
     tags,
     added: date,

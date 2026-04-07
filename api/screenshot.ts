@@ -39,9 +39,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const { url, title, category, tags } = req.body;
-  if (!url || !title || !category) {
-    return res.status(400).json({ error: "Missing url, title, or category" });
+  const { url, title: providedTitle, category, tags } = req.body;
+  if (!url || !category) {
+    return res.status(400).json({ error: "Missing url or category" });
   }
 
   try {
@@ -55,6 +55,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
     await new Promise((r) => setTimeout(r, 2000));
+
+    // Extract page metadata before screenshot
+    const meta = await page.evaluate(`({
+      title:
+        document.querySelector('meta[property="og:title"]')?.getAttribute("content") ??
+        document.title ??
+        "",
+      description:
+        document.querySelector('meta[property="og:description"]')?.getAttribute("content") ?? "",
+    })`) as { title: string; description: string };
+
     const screenshotBuffer = await page.screenshot({ type: "png" });
     await browser.close();
 
@@ -62,6 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Upload full image
     const hostname = new URL(url).hostname.replace(/^www\./, "");
+    const title = providedTitle || meta.title || hostname;
     const slug = hostname.replace(/\./g, "-");
     const date = new Date().toISOString().split("T")[0];
     const filename = `${slug}-${date}.png`;
@@ -74,11 +86,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       allowOverwrite: true,
     });
 
-    // Generate and upload thumbnail
-    const thumbBuf = await sharp(buffer)
-      .resize(600, undefined, { withoutEnlargement: true })
-      .webp({ quality: 75 })
-      .toBuffer();
+    // Generate thumbnail + LQIP
+    const [thumbBuf, lqipTiny] = await Promise.all([
+      sharp(buffer)
+        .resize(400, undefined, { withoutEnlargement: true })
+        .webp({ quality: 65 })
+        .toBuffer(),
+      sharp(buffer)
+        .resize(20, undefined, { withoutEnlargement: true })
+        .webp({ quality: 20 })
+        .toBuffer(),
+    ]);
+    const lqip = `data:image/webp;base64,${lqipTiny.toString("base64")}`;
     const thumbPath = `taste/${category}/${slug}-${date}.thumb.webp`;
     const { url: thumbUrl } = await put(thumbPath, thumbBuf, {
       access: "public",
@@ -96,6 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       url,
       image: imageUrl,
       thumb: thumbUrl,
+      lqip,
       category: category as TasteItem["category"],
       tags: tags ?? [],
       added: date,

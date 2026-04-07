@@ -14,6 +14,7 @@ export interface TasteItem {
   url: string;
   image: string;
   thumb?: string;
+  lqip?: string;
   category: Category;
   tags: string[];
   added: string;
