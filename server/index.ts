@@ -24,6 +24,7 @@ if (!isBlob) {
     "patterns",
     "branding",
     "ui",
+    "graphics",
   ];
   for (const cat of CATEGORIES) {
     const dir = path.join(storage.vaultDir, cat);
@@ -270,6 +271,7 @@ function updateWikiTastePage(manifest: {
     patterns: "Patterns",
     branding: "Branding",
     ui: "UI",
+    graphics: "Graphics",
   };
 
   for (const [cat, items] of Object.entries(grouped)) {

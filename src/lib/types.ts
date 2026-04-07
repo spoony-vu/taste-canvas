@@ -6,7 +6,8 @@ export type Category =
   | "color-palette"
   | "patterns"
   | "branding"
-  | "ui";
+  | "ui"
+  | "graphics";
 
 export interface TasteItem {
   id: string;

@@ -56,6 +56,12 @@ export const categories: CategoryDef[] = [
     color: "oklch(0.75 0.15 240)",
     dot: "oklch(0.65 0.2 240)",
   },
+  {
+    id: "graphics",
+    label: "Graphics",
+    color: "oklch(0.75 0.15 170)",
+    dot: "oklch(0.65 0.2 170)",
+  },
 ];
 
 export const categoryMap = Object.fromEntries(
