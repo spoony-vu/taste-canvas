@@ -10,6 +10,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "push": "tsx scripts/push.ts",
     "sync": "tsx scripts/sync.ts",
     "vercel-build": "vite build"
   },
