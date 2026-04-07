@@ -2,7 +2,9 @@ import { useState, useMemo, useCallback } from "react";
 import { FilterBar } from "./components/FilterBar";
 import { SearchInput } from "./components/SearchInput";
 import { CardGrid } from "./components/CardGrid";
+import { AddButton } from "./components/AddButton";
 import { AddModal } from "./components/AddModal";
+import { ImageUploadModal } from "./components/ImageUploadModal";
 import { Lightbox } from "./components/Lightbox";
 import { DropZone } from "./components/DropZone";
 import { useManifest } from "./hooks/useManifest";
@@ -12,7 +14,8 @@ export default function App() {
   const { manifest, loading, addItem, removeItem } = useManifest();
   const [activeFilters, setActiveFilters] = useState<Set<Category>>(new Set());
   const [search, setSearch] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
+  const [urlModalOpen, setUrlModalOpen] = useState(false);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
   const [lightboxItem, setLightboxItem] = useState<TasteItem | null>(null);
 
   const toggleFilter = useCallback((cat: Category) => {
@@ -64,24 +67,10 @@ export default function App() {
         </h1>
         <div className="flex items-center gap-3">
           <SearchInput value={search} onChange={setSearch} />
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-[13px] font-medium transition-colors duration-150"
-            style={{
-              background: "var(--color-text-primary)",
-              color: "var(--color-surface-0)",
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M8 3v10M3 8h10"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-            Add URL
-          </button>
+          <AddButton
+            onAddUrl={() => setUrlModalOpen(true)}
+            onAddImage={() => setImageModalOpen(true)}
+          />
         </div>
       </header>
 
@@ -107,8 +96,14 @@ export default function App() {
       />
 
       <AddModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        open={urlModalOpen}
+        onClose={() => setUrlModalOpen(false)}
+        onAdd={addItem}
+      />
+
+      <ImageUploadModal
+        open={imageModalOpen}
+        onClose={() => setImageModalOpen(false)}
         onAdd={addItem}
       />
 
