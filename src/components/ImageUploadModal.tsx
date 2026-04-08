@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { categories } from "../lib/categories";
 import { useUpload } from "../hooks/useUpload";
@@ -6,6 +6,7 @@ import type { Category, TasteItem } from "../lib/types";
 
 interface ImageUploadModalProps {
   open: boolean;
+  files: File[];
   onClose: () => void;
   onAdd: (item: TasteItem) => void;
 }
@@ -17,16 +18,28 @@ interface QueuedFile {
   isVideo: boolean;
 }
 
-export function ImageUploadModal({ open, onClose, onAdd }: ImageUploadModalProps) {
-  const [queue, setQueue] = useState<QueuedFile[]>([]);
+export function ImageUploadModal({ open, files, onClose, onAdd }: ImageUploadModalProps) {
+  const initialQueue = useMemo<QueuedFile[]>(
+    () =>
+      files.map((f) => ({
+        file: f,
+        preview: URL.createObjectURL(f),
+        title: f.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "),
+        isVideo: f.type.startsWith("video/"),
+      })),
+    // Only build queue once on mount; files identity changes trigger a remount via key
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  const [queue, setQueue] = useState<QueuedFile[]>(initialQueue);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [category, setCategory] = useState<Category>("ui");
   const [url, setUrl] = useState("");
   const [tags, setTags] = useState("");
   const [uploadedCount, setUploadedCount] = useState(0);
-  const fileRef = useRef<HTMLInputElement>(null);
 
-  const { uploading, upload } = useUpload(
+  const { uploading, error, upload } = useUpload(
     useCallback(
       (item: TasteItem) => {
         onAdd(item);
@@ -38,31 +51,20 @@ export function ImageUploadModal({ open, onClose, onAdd }: ImageUploadModalProps
 
   // Auto-advance to next file after upload completes
   useEffect(() => {
-    if (uploadedCount > 0 && !uploading && currentIndex < queue.length - 1) {
+    if (uploadedCount > 0 && !uploading && !error && currentIndex < queue.length - 1) {
       setCurrentIndex((i) => i + 1);
-    } else if (uploadedCount > 0 && !uploading && currentIndex >= queue.length - 1 && queue.length > 0) {
-      // All done
+    } else if (uploadedCount > 0 && !uploading && !error && currentIndex >= queue.length - 1 && queue.length > 0) {
       onClose();
     }
-  }, [uploadedCount, uploading, currentIndex, queue.length, onClose]);
+  }, [uploadedCount, uploading, error, currentIndex, queue.length, onClose]);
 
+  // Revoke object URLs on unmount
   useEffect(() => {
-    if (open) {
-      setTimeout(() => fileRef.current?.click(), 100);
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) {
+    return () => {
       queue.forEach((q) => URL.revokeObjectURL(q.preview));
-      setQueue([]);
-      setCurrentIndex(0);
-      setCategory("ui");
-      setUrl("");
-      setTags("");
-      setUploadedCount(0);
-    }
-  }, [open]);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -71,27 +73,6 @@ export function ImageUploadModal({ open, onClose, onAdd }: ImageUploadModalProps
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [open, onClose]);
-
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    const accepted = files.filter(
-      (f) => f.type.startsWith("image/") || f.type.startsWith("video/")
-    );
-    if (accepted.length === 0) {
-      onClose();
-      return;
-    }
-    const queued: QueuedFile[] = accepted.map((f) => ({
-      file: f,
-      preview: URL.createObjectURL(f),
-      title: f.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "),
-      isVideo: f.type.startsWith("video/"),
-    }));
-    setQueue(queued);
-    setCurrentIndex(0);
-    // Reset the input so the same files can be re-selected
-    e.target.value = "";
-  }, [onClose]);
 
   const current = queue[currentIndex];
 
@@ -109,17 +90,8 @@ export function ImageUploadModal({ open, onClose, onAdd }: ImageUploadModalProps
   const remaining = queue.length - currentIndex;
 
   return (
-    <>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*,video/*"
-        multiple
-        className="hidden"
-        onChange={handleFileChange}
-      />
-      <AnimatePresence>
-        {open && current && (
+    <AnimatePresence>
+      {open && current && (
           <>
             <motion.div
               initial={{ opacity: 0 }}
@@ -261,6 +233,11 @@ export function ImageUploadModal({ open, onClose, onAdd }: ImageUploadModalProps
                     color: "var(--color-text-primary)",
                   }}
                 />
+                {error && (
+                  <p className="text-[13px]" style={{ color: "oklch(0.7 0.2 25)" }}>
+                    {error}
+                  </p>
+                )}
                 <div className="mt-1 flex justify-end gap-2">
                   <button
                     onClick={onClose}
@@ -293,6 +270,5 @@ export function ImageUploadModal({ open, onClose, onAdd }: ImageUploadModalProps
           </>
         )}
       </AnimatePresence>
-    </>
   );
 }

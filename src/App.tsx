@@ -12,12 +12,20 @@ import { UndoToast } from "./components/UndoToast";
 import { useManifest } from "./hooks/useManifest";
 import type { Category, TasteItem } from "./lib/types";
 
+function acceptedFiles(files: FileList | null): File[] {
+  return Array.from(files ?? []).filter(
+    (f) => f.type.startsWith("image/") || f.type.startsWith("video/")
+  );
+}
+
 export default function App() {
   const { manifest, loading, addItem, removeItem, confirmDelete, restoreItem } = useManifest();
   const [activeFilters, setActiveFilters] = useState<Set<Category>>(new Set());
   const [search, setSearch] = useState("");
   const [urlModalOpen, setUrlModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [lightboxItem, setLightboxItem] = useState<TasteItem | null>(null);
   const [pendingDelete, setPendingDelete] = useState<TasteItem | null>(null);
   const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -91,7 +99,7 @@ export default function App() {
           <SearchInput value={search} onChange={setSearch} />
           <AddButton
             onAddUrl={() => setUrlModalOpen(true)}
-            onAddImage={() => setImageModalOpen(true)}
+            onAddImage={() => fileInputRef.current?.click()}
           />
         </div>
       </header>
@@ -115,6 +123,22 @@ export default function App() {
         onClearFilters={clearFilters}
       />
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          const files = acceptedFiles(e.target.files);
+          e.target.value = "";
+          if (files.length > 0) {
+            setPendingFiles(files);
+            setImageModalOpen(true);
+          }
+        }}
+      />
+
       <Suspense>
         {urlModalOpen && (
           <AddModal
@@ -124,10 +148,14 @@ export default function App() {
           />
         )}
 
-        {imageModalOpen && (
+        {imageModalOpen && pendingFiles.length > 0 && (
           <ImageUploadModal
             open={imageModalOpen}
-            onClose={() => setImageModalOpen(false)}
+            files={pendingFiles}
+            onClose={() => {
+              setImageModalOpen(false);
+              setPendingFiles([]);
+            }}
             onAdd={addItem}
           />
         )}
