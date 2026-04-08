@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { categoryMap } from "../lib/categories";
 import { thumbUrl } from "../lib/image";
@@ -14,9 +14,11 @@ interface TasteCardProps {
 export function TasteCard({ item, index, onDelete, onZoom }: TasteCardProps) {
   const cat = categoryMap[item.category];
   const hasUrl = item.url && item.url.length > 0;
+  const isVideo = !!item.video;
   const [loaded, setLoaded] = useState(false);
   const handleLoad = useCallback(() => setLoaded(true), []);
   const reduced = useReducedMotion();
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   return (
     <motion.div
@@ -30,6 +32,11 @@ export function TasteCard({ item, index, onDelete, onZoom }: TasteCardProps) {
       <button
         onClick={() => onZoom(item)}
         className="block w-full cursor-zoom-in text-left"
+        onMouseEnter={() => videoRef.current?.play()}
+        onMouseLeave={() => {
+          const v = videoRef.current;
+          if (v) { v.pause(); v.currentTime = 0; }
+        }}
       >
         <div
           className="relative overflow-hidden"
@@ -39,14 +46,28 @@ export function TasteCard({ item, index, onDelete, onZoom }: TasteCardProps) {
             backgroundPosition: "center",
           } : undefined}
         >
-          <img
-            src={thumbUrl(item.thumb, item.image)}
-            alt={item.title}
-            loading="lazy"
-            onLoad={handleLoad}
-            className="block w-full transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.02]"
-            style={{ opacity: loaded ? 1 : 0 }}
-          />
+          {isVideo ? (
+            <video
+              ref={videoRef}
+              src={item.video}
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              onLoadedData={handleLoad}
+              className="block w-full transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.02]"
+              style={{ opacity: loaded ? 1 : 0 }}
+            />
+          ) : (
+            <img
+              src={thumbUrl(item.thumb, item.image)}
+              alt={item.title}
+              loading="lazy"
+              onLoad={handleLoad}
+              className="block w-full transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.02]"
+              style={{ opacity: loaded ? 1 : 0 }}
+            />
+          )}
           <div
             className="absolute inset-0 flex flex-col justify-end p-3 pt-16 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
             style={{

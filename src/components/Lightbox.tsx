@@ -15,6 +15,7 @@ export function Lightbox({ item, onClose }: LightboxProps) {
   const imgRef = useRef<HTMLImageElement>(null);
   const reduced = useReducedMotion();
   const dur = reduced ? 0 : 0.2;
+  const isVideo = !!item?.video;
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
@@ -150,14 +151,27 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                 className="relative flex max-h-full max-w-full flex-col items-center"
                 onClick={(e) => e.stopPropagation()}
               >
-                <img
-                  ref={imgRef}
-                  src={src}
-                  alt={item.title}
-                  onLoad={handleLoad}
-                  className="max-h-[calc(100vh-120px)] max-w-[calc(100vw-64px)] rounded-xl object-contain"
-                  style={{ boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)" }}
-                />
+                {isVideo ? (
+                  <video
+                    src={item.video}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    controls
+                    className="max-h-[calc(100vh-120px)] max-w-[calc(100vw-64px)] rounded-xl"
+                    style={{ boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)" }}
+                  />
+                ) : (
+                  <img
+                    ref={imgRef}
+                    src={src}
+                    alt={item.title}
+                    onLoad={handleLoad}
+                    className="max-h-[calc(100vh-120px)] max-w-[calc(100vw-64px)] rounded-xl object-contain"
+                    style={{ boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)" }}
+                  />
+                )}
                 <div className="mt-4 flex items-center gap-3">
                   <span
                     className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"

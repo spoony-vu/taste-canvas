@@ -68,12 +68,14 @@ export function DropZone({ children, onAdd }: DropZoneProps) {
     dragCounter.current = 0;
 
     const files = Array.from(e.dataTransfer.files);
-    const imageFile = files.find((f) => f.type.startsWith("image/"));
-    if (!imageFile) return;
+    const mediaFile = files.find(
+      (f) => f.type.startsWith("image/") || f.type.startsWith("video/")
+    );
+    if (!mediaFile) return;
 
-    const preview = URL.createObjectURL(imageFile);
-    setPending({ file: imageFile, preview });
-    const name = imageFile.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ");
+    const preview = URL.createObjectURL(mediaFile);
+    setPending({ file: mediaFile, preview });
+    const name = mediaFile.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ");
     setTitle(name);
   }, []);
 
@@ -157,14 +159,26 @@ export function DropZone({ children, onAdd }: DropZoneProps) {
               }}
             >
               <h2 className="mb-4 text-[17px] font-semibold">
-                Add Screenshot
+                Add {pending.file.type.startsWith("video/") ? "Video" : "Screenshot"}
               </h2>
-              <img
-                src={pending.preview}
-                alt="Preview"
-                className="mb-4 max-h-48 w-full rounded-lg object-contain"
-                style={{ background: "var(--color-surface-0)" }}
-              />
+              {pending.file.type.startsWith("video/") ? (
+                <video
+                  src={pending.preview}
+                  muted
+                  autoPlay
+                  loop
+                  playsInline
+                  className="mb-4 max-h-48 w-full rounded-lg object-contain"
+                  style={{ background: "var(--color-surface-0)" }}
+                />
+              ) : (
+                <img
+                  src={pending.preview}
+                  alt="Preview"
+                  className="mb-4 max-h-48 w-full rounded-lg object-contain"
+                  style={{ background: "var(--color-surface-0)" }}
+                />
+              )}
               <div className="flex flex-col gap-3">
                 <input
                   type="text"

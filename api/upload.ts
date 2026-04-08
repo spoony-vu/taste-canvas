@@ -39,13 +39,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const contentType = req.headers["content-type"] ?? "";
 
-  let imageBuffer: Buffer;
+  let fileBuffer: Buffer;
   let title: string;
   let category: string;
   let url = "";
   let tags: string[] = [];
   let ext = "png";
-  let imageContentType = "image/png";
+  let fileContentType = "image/png";
+  let isVideo = false;
 
   if (contentType.includes("multipart/form-data")) {
     // Parse multipart manually using Web API
@@ -69,21 +70,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const urlPart = parts.find((p) => p.name === "url");
     const tagsPart = parts.find((p) => p.name === "tags");
 
-    if (!imagePart || !titlePart || !categoryPart) {
-      return res.status(400).json({ error: "Missing image, title, or category" });
+    const filePart = imagePart ?? parts.find((p) => p.name === "video");
+    if (!filePart || !titlePart || !categoryPart) {
+      return res.status(400).json({ error: "Missing file, title, or category" });
     }
 
-    imageBuffer = imagePart.data;
+    fileBuffer = filePart.data;
     title = titlePart.data.toString("utf-8");
     category = categoryPart.data.toString("utf-8");
     url = urlPart ? urlPart.data.toString("utf-8") : "";
     tags = tagsPart ? JSON.parse(tagsPart.data.toString("utf-8")) : [];
 
-    if (imagePart.filename) {
-      ext = imagePart.filename.split(".").pop() ?? "png";
+    if (filePart.filename) {
+      ext = filePart.filename.split(".").pop() ?? "png";
     }
-    if (imagePart.contentType) {
-      imageContentType = imagePart.contentType;
+    if (filePart.contentType) {
+      fileContentType = filePart.contentType;
+      isVideo = filePart.contentType.startsWith("video/");
     }
   } else {
     return res.status(400).json({ error: "Expected multipart/form-data" });
@@ -97,32 +100,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const filename = `${slug}-${date}.${ext}`;
   const blobPath = `taste/${category}/${filename}`;
 
-  const { url: blobUrl } = await put(blobPath, imageBuffer, {
+  const { url: blobUrl } = await put(blobPath, fileBuffer, {
     access: "public",
-    contentType: imageContentType,
+    contentType: fileContentType,
     addRandomSuffix: false,
     allowOverwrite: true,
   });
 
-  // Generate thumbnail + LQIP
-  const [thumbBuf, lqipTiny] = await Promise.all([
-    sharp(imageBuffer)
-      .resize(400, undefined, { withoutEnlargement: true })
-      .webp({ quality: 65 })
-      .toBuffer(),
-    sharp(imageBuffer)
-      .resize(20, undefined, { withoutEnlargement: true })
-      .webp({ quality: 20 })
-      .toBuffer(),
-  ]);
-  const lqip = `data:image/webp;base64,${lqipTiny.toString("base64")}`;
-  const thumbPath = `taste/${category}/${slug}-${date}.thumb.webp`;
-  const { url: thumbUrl } = await put(thumbPath, thumbBuf, {
-    access: "public",
-    contentType: "image/webp",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
+  let thumbUrl = "";
+  let lqip = "";
+  let videoUrl: string | undefined;
+
+  if (isVideo) {
+    // For video: store as-is, no thumbnail generation on server
+    // The client will use the video element's poster or first frame
+    videoUrl = blobUrl;
+  } else {
+    // Generate thumbnail + LQIP for images
+    const [thumbBuf, lqipTiny] = await Promise.all([
+      sharp(fileBuffer)
+        .resize(400, undefined, { withoutEnlargement: true })
+        .webp({ quality: 65 })
+        .toBuffer(),
+      sharp(fileBuffer)
+        .resize(20, undefined, { withoutEnlargement: true })
+        .webp({ quality: 20 })
+        .toBuffer(),
+    ]);
+    lqip = `data:image/webp;base64,${lqipTiny.toString("base64")}`;
+    const thumbPath = `taste/${category}/${slug}-${date}.thumb.webp`;
+    ({ url: thumbUrl } = await put(thumbPath, thumbBuf, {
+      access: "public",
+      contentType: "image/webp",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    }));
+  }
 
   const manifest = await readManifest();
   const id = crypto.randomUUID().slice(0, 8);
@@ -131,8 +144,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     title,
     url,
     image: blobUrl,
-    thumb: thumbUrl,
-    lqip,
+    ...(thumbUrl && { thumb: thumbUrl }),
+    ...(lqip && { lqip }),
+    ...(videoUrl && { video: videoUrl }),
     category: category as TasteItem["category"],
     tags,
     added: date,

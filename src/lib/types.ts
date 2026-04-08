@@ -16,6 +16,7 @@ export interface TasteItem {
   image: string;
   thumb?: string;
   lqip?: string;
+  video?: string;
   category: Category;
   tags: string[];
   added: string;

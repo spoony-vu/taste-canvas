@@ -10,24 +10,41 @@ interface ImageUploadModalProps {
   onAdd: (item: TasteItem) => void;
 }
 
+interface QueuedFile {
+  file: File;
+  preview: string;
+  title: string;
+  isVideo: boolean;
+}
+
 export function ImageUploadModal({ open, onClose, onAdd }: ImageUploadModalProps) {
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState("");
-  const [title, setTitle] = useState("");
+  const [queue, setQueue] = useState<QueuedFile[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [category, setCategory] = useState<Category>("ui");
   const [url, setUrl] = useState("");
   const [tags, setTags] = useState("");
+  const [uploadedCount, setUploadedCount] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { uploading, upload } = useUpload(
     useCallback(
       (item: TasteItem) => {
         onAdd(item);
-        onClose();
+        setUploadedCount((c) => c + 1);
       },
-      [onAdd, onClose]
+      [onAdd]
     )
   );
+
+  // Auto-advance to next file after upload completes
+  useEffect(() => {
+    if (uploadedCount > 0 && !uploading && currentIndex < queue.length - 1) {
+      setCurrentIndex((i) => i + 1);
+    } else if (uploadedCount > 0 && !uploading && currentIndex >= queue.length - 1 && queue.length > 0) {
+      // All done
+      onClose();
+    }
+  }, [uploadedCount, uploading, currentIndex, queue.length, onClose]);
 
   useEffect(() => {
     if (open) {
@@ -37,13 +54,13 @@ export function ImageUploadModal({ open, onClose, onAdd }: ImageUploadModalProps
 
   useEffect(() => {
     if (!open) {
-      if (preview) URL.revokeObjectURL(preview);
-      setFile(null);
-      setPreview("");
-      setTitle("");
+      queue.forEach((q) => URL.revokeObjectURL(q.preview));
+      setQueue([]);
+      setCurrentIndex(0);
       setCategory("ui");
       setUrl("");
       setTags("");
+      setUploadedCount(0);
     }
   }, [open]);
 
@@ -56,33 +73,53 @@ export function ImageUploadModal({ open, onClose, onAdd }: ImageUploadModalProps
   }, [open, onClose]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f || !f.type.startsWith("image/")) {
+    const files = Array.from(e.target.files ?? []);
+    const accepted = files.filter(
+      (f) => f.type.startsWith("image/") || f.type.startsWith("video/")
+    );
+    if (accepted.length === 0) {
       onClose();
       return;
     }
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
-    const name = f.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ");
-    setTitle(name);
+    const queued: QueuedFile[] = accepted.map((f) => ({
+      file: f,
+      preview: URL.createObjectURL(f),
+      title: f.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "),
+      isVideo: f.type.startsWith("video/"),
+    }));
+    setQueue(queued);
+    setCurrentIndex(0);
+    // Reset the input so the same files can be re-selected
+    e.target.value = "";
   }, [onClose]);
 
+  const current = queue[currentIndex];
+
   const handleUpload = useCallback(() => {
-    if (!file || !title) return;
-    upload({ file, title, category, url, tags });
-  }, [file, title, category, url, tags, upload]);
+    if (!current) return;
+    upload({ file: current.file, title: current.title, category, url, tags });
+  }, [current, category, url, tags, upload]);
+
+  const handleTitleChange = useCallback((newTitle: string) => {
+    setQueue((prev) =>
+      prev.map((q, i) => (i === currentIndex ? { ...q, title: newTitle } : q))
+    );
+  }, [currentIndex]);
+
+  const remaining = queue.length - currentIndex;
 
   return (
     <>
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/*"
+        multiple
         className="hidden"
         onChange={handleFileChange}
       />
       <AnimatePresence>
-        {open && file && (
+        {open && current && (
           <>
             <motion.div
               initial={{ opacity: 0 }}
@@ -106,18 +143,79 @@ export function ImageUploadModal({ open, onClose, onAdd }: ImageUploadModalProps
                 color: "var(--color-text-primary)",
               }}
             >
-              <h2 className="mb-4 text-[17px] font-semibold">Add Image</h2>
-              <img
-                src={preview}
-                alt="Preview"
-                className="mb-4 max-h-48 w-full rounded-lg object-contain"
-                style={{ background: "var(--color-surface-0)" }}
-              />
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-[17px] font-semibold">
+                  {queue.length > 1
+                    ? `Add ${current.isVideo ? "Video" : "Image"} (${currentIndex + 1}/${queue.length})`
+                    : `Add ${current.isVideo ? "Video" : "Image"}`}
+                </h2>
+                {queue.length > 1 && (
+                  <span
+                    className="text-[12px] font-medium"
+                    style={{ color: "var(--color-text-tertiary)" }}
+                  >
+                    {remaining} remaining
+                  </span>
+                )}
+              </div>
+              {current.isVideo ? (
+                <video
+                  src={current.preview}
+                  muted
+                  autoPlay
+                  loop
+                  playsInline
+                  className="mb-4 max-h-48 w-full rounded-lg object-contain"
+                  style={{ background: "var(--color-surface-0)" }}
+                />
+              ) : (
+                <img
+                  src={current.preview}
+                  alt="Preview"
+                  className="mb-4 max-h-48 w-full rounded-lg object-contain"
+                  style={{ background: "var(--color-surface-0)" }}
+                />
+              )}
+              {/* Thumbnail strip for multi-file */}
+              {queue.length > 1 && (
+                <div className="mb-4 flex gap-1.5 overflow-x-auto scrollbar-none">
+                  {queue.map((q, i) => (
+                    <button
+                      key={i}
+                      onClick={() => !uploading && setCurrentIndex(i)}
+                      className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-md transition-opacity duration-100"
+                      style={{
+                        opacity: i < currentIndex ? 0.3 : i === currentIndex ? 1 : 0.6,
+                        outline: i === currentIndex ? "2px solid var(--color-text-primary)" : "none",
+                        outlineOffset: "-2px",
+                      }}
+                    >
+                      {q.isVideo ? (
+                        <div
+                          className="flex h-full w-full items-center justify-center text-[8px]"
+                          style={{ background: "var(--color-surface-0)", color: "var(--color-text-tertiary)" }}
+                        >
+                          VID
+                        </div>
+                      ) : (
+                        <img src={q.preview} alt="" className="h-full w-full object-cover" />
+                      )}
+                      {i < uploadedCount && (
+                        <div className="absolute inset-0 flex items-center justify-center" style={{ background: "oklch(0.2 0.1 145 / 0.6)" }}>
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                            <path d="M3 8l4 4 6-8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="flex flex-col gap-3">
                 <input
                   type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  value={current.title}
+                  onChange={(e) => handleTitleChange(e.target.value)}
                   placeholder="Title"
                   autoFocus
                   className="h-10 rounded-lg border-none px-3 text-[14px] outline-none"
@@ -176,14 +274,18 @@ export function ImageUploadModal({ open, onClose, onAdd }: ImageUploadModalProps
                   </button>
                   <button
                     onClick={handleUpload}
-                    disabled={uploading || !title}
+                    disabled={uploading || !current.title}
                     className="rounded-lg px-4 py-2 text-[13px] font-medium transition-colors duration-150 disabled:opacity-40"
                     style={{
                       background: "var(--color-text-primary)",
                       color: "var(--color-surface-0)",
                     }}
                   >
-                    {uploading ? "Saving..." : "Save"}
+                    {uploading
+                      ? "Saving..."
+                      : queue.length > 1
+                        ? `Save (${currentIndex + 1}/${queue.length})`
+                        : "Save"}
                   </button>
                 </div>
               </div>

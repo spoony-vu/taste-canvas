@@ -20,7 +20,8 @@ export function useUpload(onSuccess: (item: TasteItem) => void) {
       setError("");
 
       const form = new FormData();
-      form.append("image", file);
+      const fieldName = file.type.startsWith("video/") ? "video" : "image";
+      form.append(fieldName, file);
       form.append("title", title);
       form.append("category", category);
       form.append("url", url);
