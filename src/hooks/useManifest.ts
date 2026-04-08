@@ -53,7 +53,7 @@ export function useManifest() {
 
   /** Fire the actual DELETE API call. */
   const confirmDelete = useCallback(async (id: string) => {
-    await fetch(`/api/manifest/${id}`, { method: "DELETE" });
+    await fetch(`/api/delete?id=${encodeURIComponent(id)}`, { method: "DELETE" });
   }, []);
 
   /** Re-insert an item at its original position (best-effort: prepend). */
