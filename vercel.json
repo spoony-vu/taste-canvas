@@ -2,6 +2,9 @@
   "buildCommand": "vite build",
   "outputDirectory": "dist",
   "functions": {
+    "api/upload.ts": {
+      "maxDuration": 30
+    },
     "api/screenshot.ts": {
       "memory": 1024,
       "maxDuration": 60

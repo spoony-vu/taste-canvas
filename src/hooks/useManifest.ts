@@ -28,14 +28,13 @@ export function useManifest() {
     }
   }, [fetchManifest]);
 
-  const addItem = useCallback(
-    async (item: TasteItem) => {
-      const next = { items: [item, ...manifest.items] };
+  const addItem = useCallback((item: TasteItem) => {
+    setManifest((prev) => {
+      const next = { items: [item, ...prev.items] };
       cachedManifest = next;
-      setManifest(next);
-    },
-    [manifest]
-  );
+      return next;
+    });
+  }, []);
 
   /** Optimistically remove item from state. Returns the removed item for undo. */
   const removeItem = useCallback(
