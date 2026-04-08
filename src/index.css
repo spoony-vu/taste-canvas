@@ -47,6 +47,7 @@ body {
 .masonry > * {
   break-inside: avoid;
   margin-bottom: 16px;
+  content-visibility: auto;
 }
 
 @media (max-width: 1280px) {

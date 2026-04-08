@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { memo, useState, useCallback, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { categoryMap } from "../lib/categories";
 import { thumbUrl } from "../lib/image";
@@ -11,7 +11,7 @@ interface TasteCardProps {
   onZoom: (item: TasteItem) => void;
 }
 
-export function TasteCard({ item, index, onDelete, onZoom }: TasteCardProps) {
+export const TasteCard = memo(function TasteCard({ item, index, onDelete, onZoom }: TasteCardProps) {
   const cat = categoryMap[item.category];
   const hasUrl = item.url && item.url.length > 0;
   const isVideo = !!item.video;
@@ -26,7 +26,7 @@ export function TasteCard({ item, index, onDelete, onZoom }: TasteCardProps) {
       initial={{ opacity: 0, y: reduced ? 0 : 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
-      transition={{ duration: reduced ? 0 : 0.25, delay: reduced ? 0 : index * 0.03 }}
+      transition={{ duration: reduced ? 0 : 0.25, delay: reduced ? 0 : Math.min(index * 0.03, 0.3) }}
       className="group relative overflow-hidden rounded-xl"
     >
       <button
@@ -141,4 +141,4 @@ export function TasteCard({ item, index, onDelete, onZoom }: TasteCardProps) {
       </button>
     </motion.div>
   );
-}
+});

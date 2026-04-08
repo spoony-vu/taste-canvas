@@ -9,4 +9,13 @@ export default defineConfig({
       "/api": "http://localhost:3002",
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("framer-motion")) return "framer-motion";
+        },
+      },
+    },
+  },
 });

@@ -1,12 +1,13 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { FilterBar } from "./components/FilterBar";
 import { SearchInput } from "./components/SearchInput";
 import { CardGrid } from "./components/CardGrid";
 import { AddButton } from "./components/AddButton";
-import { AddModal } from "./components/AddModal";
-import { ImageUploadModal } from "./components/ImageUploadModal";
-import { Lightbox } from "./components/Lightbox";
 import { DropZone } from "./components/DropZone";
+
+const AddModal = lazy(() => import("./components/AddModal").then(m => ({ default: m.AddModal })));
+const ImageUploadModal = lazy(() => import("./components/ImageUploadModal").then(m => ({ default: m.ImageUploadModal })));
+const Lightbox = lazy(() => import("./components/Lightbox").then(m => ({ default: m.Lightbox })));
 import { UndoToast } from "./components/UndoToast";
 import { useManifest } from "./hooks/useManifest";
 import type { Category, TasteItem } from "./lib/types";
@@ -116,22 +117,30 @@ export default function App() {
         onClearFilters={clearFilters}
       />
 
-      <AddModal
-        open={urlModalOpen}
-        onClose={() => setUrlModalOpen(false)}
-        onAdd={addItem}
-      />
+      <Suspense>
+        {urlModalOpen && (
+          <AddModal
+            open={urlModalOpen}
+            onClose={() => setUrlModalOpen(false)}
+            onAdd={addItem}
+          />
+        )}
 
-      <ImageUploadModal
-        open={imageModalOpen}
-        onClose={() => setImageModalOpen(false)}
-        onAdd={addItem}
-      />
+        {imageModalOpen && (
+          <ImageUploadModal
+            open={imageModalOpen}
+            onClose={() => setImageModalOpen(false)}
+            onAdd={addItem}
+          />
+        )}
 
-      <Lightbox
-        item={lightboxItem}
-        onClose={() => setLightboxItem(null)}
-      />
+        {lightboxItem && (
+          <Lightbox
+            item={lightboxItem}
+            onClose={() => setLightboxItem(null)}
+          />
+        )}
+      </Suspense>
 
       <UndoToast
         title={pendingDelete?.title ?? null}
