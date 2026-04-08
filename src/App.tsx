@@ -36,13 +36,14 @@ export default function App() {
   }, []);
 
   const handleDelete = useCallback((id: string) => {
-    // If there's already a pending delete, confirm it immediately
     if (pendingDelete) {
-      confirmDelete(pendingDelete.id);
       clearTimeout(pendingTimerRef.current);
     }
     const removed = removeItem(id);
-    if (removed) setPendingDelete(removed);
+    if (removed) {
+      setPendingDelete(removed);
+      confirmDelete(id);
+    }
   }, [pendingDelete, removeItem, confirmDelete]);
 
   const handleUndo = useCallback(() => {
@@ -54,11 +55,8 @@ export default function App() {
   }, [pendingDelete, restoreItem]);
 
   const handleExpire = useCallback(() => {
-    if (pendingDelete) {
-      confirmDelete(pendingDelete.id);
-      setPendingDelete(null);
-    }
-  }, [pendingDelete, confirmDelete]);
+    setPendingDelete(null);
+  }, []);
 
   const filtered = useMemo(() => {
     let items = manifest.items;

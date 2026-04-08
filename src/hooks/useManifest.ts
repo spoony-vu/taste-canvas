@@ -56,12 +56,20 @@ export function useManifest() {
     await fetch(`/api/delete?id=${encodeURIComponent(id)}`, { method: "DELETE" });
   }, []);
 
-  /** Re-insert an item at its original position (best-effort: prepend). */
-  const restoreItem = useCallback((item: TasteItem) => {
+  /** Re-insert an item locally and on the server. */
+  const restoreItem = useCallback(async (item: TasteItem) => {
     setManifest((prev) => {
       const next = { items: [item, ...prev.items] };
       cachedManifest = next;
       return next;
+    });
+    const res = await fetch("/api/manifest");
+    const data = (await res.json()) as Manifest;
+    data.items.unshift(item);
+    await fetch("/api/manifest", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
     });
   }, []);
 
