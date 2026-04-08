@@ -87,8 +87,12 @@ export function AddModal({ open, onClose, onAdd }: AddModalProps) {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Screenshot failed");
+        let msg = `Screenshot failed (${res.status})`;
+        try {
+          const data = await res.json();
+          if (data.error) msg = data.error;
+        } catch {}
+        throw new Error(msg);
       }
 
       const item = await res.json();

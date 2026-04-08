@@ -26,7 +26,7 @@ async function writeManifest(data: Manifest): Promise<void> {
 }
 
 export const config = {
-  maxDuration: 30,
+  maxDuration: 60,
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
