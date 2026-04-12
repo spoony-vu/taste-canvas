@@ -3,6 +3,43 @@ import { TasteCard } from "./TasteCard";
 import type { LayoutMode, TasteItem } from "../lib/types";
 
 const SKELETON_HEIGHTS = [180, 240, 160, 220, 200, 260, 150, 210];
+const SKELETON_COUNT_GRID = 12;
+const SKELETON_COUNT_FEED = 4;
+
+function SkeletonCard({ height, mode }: { height: number; mode: LayoutMode }) {
+  if (mode === "grid") {
+    return (
+      <div
+        className="skeleton-shimmer rounded-lg"
+        style={{ aspectRatio: "4/3" }}
+      />
+    );
+  }
+  if (mode === "feed") {
+    return (
+      <div className="overflow-hidden rounded-xl">
+        <div
+          className="skeleton-shimmer"
+          style={{ aspectRatio: "16/9" }}
+        />
+        <div className="flex items-center gap-2 px-1 pt-2.5">
+          <div
+            className="skeleton-shimmer h-5 w-16 rounded-full"
+          />
+          <div
+            className="skeleton-shimmer h-4 w-32 rounded"
+          />
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div
+      className="skeleton-shimmer rounded-xl"
+      style={{ height }}
+    />
+  );
+}
 
 interface CardGridProps {
   items: TasteItem[];
@@ -28,13 +65,27 @@ export function CardGrid({
   onClearFilters,
 }: CardGridProps) {
   if (loading) {
+    const containerClass =
+      layoutMode === "grid"
+        ? "card-grid"
+        : layoutMode === "feed"
+          ? "feed-layout"
+          : "masonry";
+
+    const count =
+      layoutMode === "grid"
+        ? SKELETON_COUNT_GRID
+        : layoutMode === "feed"
+          ? SKELETON_COUNT_FEED
+          : SKELETON_HEIGHTS.length;
+
     return (
-      <div className="masonry">
-        {SKELETON_HEIGHTS.map((h, i) => (
-          <div
+      <div className={containerClass}>
+        {Array.from({ length: count }, (_, i) => (
+          <SkeletonCard
             key={i}
-            className="skeleton-shimmer rounded-xl"
-            style={{ height: h }}
+            height={SKELETON_HEIGHTS[i % SKELETON_HEIGHTS.length]}
+            mode={layoutMode}
           />
         ))}
       </div>
