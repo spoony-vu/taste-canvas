@@ -9,8 +9,10 @@ interface LightboxProps {
   onClose: () => void;
 }
 
-const imageTransition = {
-  layout: { type: "spring" as const, duration: 0.5, bounce: 0.05 },
+const heroTransition = {
+  type: "spring" as const,
+  duration: 0.55,
+  bounce: 0.1,
 };
 
 export function Lightbox({ item, onClose }: LightboxProps) {
@@ -61,10 +63,12 @@ export function Lightbox({ item, onClose }: LightboxProps) {
   const hasUrl = item?.url && item.url.length > 0;
 
   return (
-    <AnimatePresence>
-      {item && cat && (
-        <>
+    <>
+      {/* Backdrop — AnimatePresence for fade */}
+      <AnimatePresence>
+        {item && (
           <motion.div
+            key="lightbox-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -73,14 +77,14 @@ export function Lightbox({ item, onClose }: LightboxProps) {
             style={{ background: "oklch(0.06 0.01 260 / 0.95)" }}
             onClick={onClose}
           />
+        )}
+      </AnimatePresence>
 
+      {/* Hero image — OUTSIDE AnimatePresence so layoutId isn't disrupted */}
+      {item && cat && (
+        <>
           {isTall ? (
-            /* Scrollable full-width view for tall/strip images */
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: reduced ? 0 : 0.25 }}
+            <div
               className="fixed inset-0 z-50 overflow-y-auto scrollbar-none"
               onClick={onClose}
             >
@@ -99,7 +103,7 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                     filter: fullLoaded || reduced ? "blur(0)" : "blur(8px)",
                     transition: "filter 0.4s ease-out",
                   }}
-                  transition={imageTransition}
+                  transition={heroTransition}
                 />
                 <div className="sticky bottom-4 mt-4 flex items-center justify-center gap-3">
                   <div
@@ -150,14 +154,9 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           ) : (
-            /* Standard centered lightbox for normal images */
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: reduced ? 0 : 0.25 }}
+            <div
               className="fixed inset-4 z-50 flex items-center justify-center"
               onClick={onClose}
             >
@@ -176,7 +175,7 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                     controls
                     className="max-h-[calc(100vh-120px)] max-w-[calc(100vw-64px)] rounded-xl"
                     style={{ boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)" }}
-                    transition={imageTransition}
+                    transition={heroTransition}
                   />
                 ) : (
                   <motion.img
@@ -191,7 +190,7 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                       filter: fullLoaded || reduced ? "blur(0)" : "blur(8px)",
                       transition: "filter 0.4s ease-out",
                     }}
-                    transition={imageTransition}
+                    transition={heroTransition}
                   />
                 )}
                 <div className="mt-4 flex items-center gap-3">
@@ -234,9 +233,10 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                   )}
                 </div>
               </div>
-            </motion.div>
+            </div>
           )}
 
+          {/* Close button */}
           <button
             onClick={onClose}
             className="fixed right-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-full transition-colors duration-150"
@@ -256,6 +256,6 @@ export function Lightbox({ item, onClose }: LightboxProps) {
           </button>
         </>
       )}
-    </AnimatePresence>
+    </>
   );
 }
