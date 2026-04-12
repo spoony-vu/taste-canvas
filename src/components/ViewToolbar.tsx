@@ -95,7 +95,7 @@ export function ViewToolbar({
         <button
           key={mode}
           onClick={() => onLayoutChange(mode)}
-          className="relative flex h-8 w-8 items-center justify-center rounded-full transition-colors duration-150"
+          className={`relative flex h-8 w-8 items-center justify-center rounded-full transition-colors duration-150${mode === "masonry" ? " hidden sm:flex" : ""}`}
           style={{
             color: layoutMode === mode
               ? "var(--color-text-primary)"

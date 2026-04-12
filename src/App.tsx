@@ -26,7 +26,8 @@ const isMobile = typeof window !== "undefined" && window.innerWidth <= 640;
 function readStoredLayout(): LayoutMode {
   try {
     const v = localStorage.getItem("taste-layout");
-    if (v === "grid" || v === "feed" || v === "masonry") return v;
+    if (v === "grid" || v === "feed") return v;
+    if (v === "masonry" && !isMobile) return v;
   } catch { /* noop */ }
   return isMobile ? "feed" : "masonry";
 }
