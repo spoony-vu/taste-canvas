@@ -25,10 +25,10 @@ export function FilterBar({ active, items, filteredCount, onToggle, onClear }: F
   const visibleCategories = categories.filter((cat) => (counts[cat.id] ?? 0) > 0);
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="scrollbar-none flex items-center gap-2 overflow-x-auto sm:flex-wrap sm:overflow-x-visible">
       <button
         onClick={onClear}
-        className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-150"
+        className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-150"
         style={{
           background: allActive
             ? "var(--color-surface-3)"
@@ -48,7 +48,7 @@ export function FilterBar({ active, items, filteredCount, onToggle, onClear }: F
             key={cat.id}
             onClick={() => onToggle(cat.id)}
             whileTap={{ scale: 0.96 }}
-            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-150"
+            className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-150"
             style={{
               background: isActive
                 ? "var(--color-surface-3)"
@@ -76,7 +76,7 @@ export function FilterBar({ active, items, filteredCount, onToggle, onClear }: F
         );
       })}
       <span
-        className="ml-auto text-[12px]"
+        className="ml-auto shrink-0 text-[12px]"
         style={{ color: "var(--color-text-tertiary)", fontVariantNumeric: "tabular-nums" }}
       >
         {filteredCount} item{filteredCount !== 1 ? "s" : ""}
