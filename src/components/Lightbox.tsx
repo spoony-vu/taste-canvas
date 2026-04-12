@@ -12,6 +12,7 @@ interface LightboxProps {
 export function Lightbox({ item, onClose }: LightboxProps) {
   const [isTall, setIsTall] = useState(false);
   const [src, setSrc] = useState("");
+  const [fullLoaded, setFullLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const reduced = useReducedMotion();
   const dur = reduced ? 0 : 0.2;
@@ -29,11 +30,14 @@ export function Lightbox({ item, onClose }: LightboxProps) {
       window.addEventListener("keydown", handleKey);
       document.body.style.overflow = "hidden";
       setIsTall(false);
-      // Start with thumbnail, then load full-res in background
+      setFullLoaded(false);
       setSrc(thumbUrl(item.thumb, item.image));
       const fullSrc = imageUrl(item.image);
       const img = new Image();
-      img.onload = () => setSrc(fullSrc);
+      img.onload = () => {
+        setSrc(fullSrc);
+        setFullLoaded(true);
+      };
       img.src = fullSrc;
     }
     return () => {
@@ -85,7 +89,12 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                   src={src}
                   alt={item.title}
                   className="w-full rounded-xl"
-                  style={{ boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)" }}
+                  style={{
+                    boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)",
+                    filter: fullLoaded || reduced ? "blur(0)" : "blur(8px)",
+                    transform: fullLoaded || reduced ? "scale(1)" : "scale(1.02)",
+                    transition: "filter 0.4s ease-out, transform 0.4s ease-out",
+                  }}
                 />
                 <div className="sticky bottom-4 mt-4 flex items-center justify-center gap-3">
                   <div
@@ -169,7 +178,12 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                     alt={item.title}
                     onLoad={handleLoad}
                     className="max-h-[calc(100vh-120px)] max-w-[calc(100vw-64px)] rounded-xl object-contain"
-                    style={{ boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)" }}
+                    style={{
+                      boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)",
+                      filter: fullLoaded || reduced ? "blur(0)" : "blur(8px)",
+                      transform: fullLoaded || reduced ? "scale(1)" : "scale(1.02)",
+                      transition: "filter 0.4s ease-out, transform 0.4s ease-out",
+                    }}
                   />
                 )}
                 <div className="mt-4 flex items-center gap-3">

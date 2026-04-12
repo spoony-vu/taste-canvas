@@ -4,13 +4,15 @@ import { SearchInput } from "./components/SearchInput";
 import { CardGrid } from "./components/CardGrid";
 import { AddButton } from "./components/AddButton";
 import { DropZone } from "./components/DropZone";
+import { ViewToolbar } from "./components/ViewToolbar";
 
 const AddModal = lazy(() => import("./components/AddModal").then(m => ({ default: m.AddModal })));
 const ImageUploadModal = lazy(() => import("./components/ImageUploadModal").then(m => ({ default: m.ImageUploadModal })));
 const Lightbox = lazy(() => import("./components/Lightbox").then(m => ({ default: m.Lightbox })));
+const TwitterImportModal = lazy(() => import("./components/TwitterImportModal").then(m => ({ default: m.TwitterImportModal })));
 import { UndoToast } from "./components/UndoToast";
 import { useManifest } from "./hooks/useManifest";
-import type { Category, TasteItem } from "./lib/types";
+import type { Category, LayoutMode, TasteItem } from "./lib/types";
 
 function acceptedFiles(files: FileList | null): File[] {
   return Array.from(files ?? []).filter(
@@ -18,17 +20,33 @@ function acceptedFiles(files: FileList | null): File[] {
   );
 }
 
+function readStoredLayout(): LayoutMode {
+  try {
+    const v = localStorage.getItem("taste-layout");
+    if (v === "grid" || v === "feed" || v === "masonry") return v;
+  } catch { /* noop */ }
+  return "masonry";
+}
+
 export default function App() {
-  const { manifest, loading, addItem, removeItem, confirmDelete, restoreItem } = useManifest();
+  const { manifest, loading, addItem, addItems, removeItem, confirmDelete, restoreItem, archiveItem, unarchiveItem } = useManifest();
   const [activeFilters, setActiveFilters] = useState<Set<Category>>(new Set());
   const [search, setSearch] = useState("");
   const [urlModalOpen, setUrlModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [twitterModalOpen, setTwitterModalOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lightboxItem, setLightboxItem] = useState<TasteItem | null>(null);
   const [pendingDelete, setPendingDelete] = useState<TasteItem | null>(null);
   const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(readStoredLayout);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const handleLayoutChange = useCallback((mode: LayoutMode) => {
+    setLayoutMode(mode);
+    try { localStorage.setItem("taste-layout", mode); } catch { /* noop */ }
+  }, []);
 
   const toggleFilter = useCallback((cat: Category) => {
     setActiveFilters((prev) => {
@@ -54,6 +72,15 @@ export default function App() {
     }
   }, [pendingDelete, removeItem, confirmDelete]);
 
+  const handleArchive = useCallback((id: string) => {
+    const item = manifest.items.find((i) => i.id === id);
+    if (item?.hidden) {
+      unarchiveItem(id);
+    } else {
+      archiveItem(id);
+    }
+  }, [manifest.items, archiveItem, unarchiveItem]);
+
   const handleUndo = useCallback(() => {
     if (pendingDelete) {
       restoreItem(pendingDelete);
@@ -66,8 +93,17 @@ export default function App() {
     setPendingDelete(null);
   }, []);
 
+  const archivedCount = useMemo(
+    () => manifest.items.filter((i) => i.hidden).length,
+    [manifest.items]
+  );
+
   const filtered = useMemo(() => {
     let items = manifest.items;
+
+    if (!showArchived) {
+      items = items.filter((item) => !item.hidden);
+    }
 
     if (activeFilters.size > 0) {
       items = items.filter((item) => activeFilters.has(item.category));
@@ -83,11 +119,16 @@ export default function App() {
     }
 
     return items;
-  }, [manifest.items, activeFilters, search]);
+  }, [manifest.items, activeFilters, search, showArchived]);
+
+  const handleTwitterImported = useCallback((items: TasteItem[]) => {
+    addItems(items);
+    setTwitterModalOpen(false);
+  }, [addItems]);
 
   return (
     <DropZone onAdd={addItem}>
-    <div className="min-h-screen px-6 pb-12 pt-6">
+    <div className="min-h-screen px-6 pb-24 pt-6">
       <header className="mb-6 flex items-center justify-between gap-4">
         <h1
           className="text-[24px] italic tracking-tight"
@@ -100,6 +141,7 @@ export default function App() {
           <AddButton
             onAddUrl={() => setUrlModalOpen(true)}
             onAddImage={() => fileInputRef.current?.click()}
+            onAddTwitter={() => setTwitterModalOpen(true)}
           />
         </div>
       </header>
@@ -118,7 +160,9 @@ export default function App() {
         items={filtered}
         loading={loading}
         totalCount={manifest.items.length}
+        layoutMode={layoutMode}
         onDelete={handleDelete}
+        onArchive={handleArchive}
         onZoom={setLightboxItem}
         onClearFilters={clearFilters}
       />
@@ -166,12 +210,28 @@ export default function App() {
             onClose={() => setLightboxItem(null)}
           />
         )}
+
+        {twitterModalOpen && (
+          <TwitterImportModal
+            open={twitterModalOpen}
+            onClose={() => setTwitterModalOpen(false)}
+            onImported={handleTwitterImported}
+          />
+        )}
       </Suspense>
 
       <UndoToast
         title={pendingDelete?.title ?? null}
         onUndo={handleUndo}
         onExpire={handleExpire}
+      />
+
+      <ViewToolbar
+        layoutMode={layoutMode}
+        onLayoutChange={handleLayoutChange}
+        showArchived={showArchived}
+        onToggleArchived={() => setShowArchived((p) => !p)}
+        archivedCount={archivedCount}
       />
     </div>
     </DropZone>

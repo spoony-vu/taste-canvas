@@ -1,15 +1,22 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
 import { TasteCard } from "./TasteCard";
-import type { TasteItem } from "../lib/types";
+import type { LayoutMode, TasteItem } from "../lib/types";
 
 const SKELETON_HEIGHTS = [180, 240, 160, 220, 200, 260, 150, 210];
 const GAP = 16;
 
-function useColumnCount() {
+function useColumnCount(layoutMode: LayoutMode) {
   const [cols, setCols] = useState(() => {
+    if (layoutMode === "feed") return 1;
     if (typeof window === "undefined") return 4;
     const w = window.innerWidth;
+    if (layoutMode === "grid") {
+      if (w <= 560) return 2;
+      if (w <= 900) return 3;
+      if (w <= 1280) return 4;
+      return 5;
+    }
     if (w <= 560) return 1;
     if (w <= 900) return 2;
     if (w <= 1280) return 3;
@@ -17,13 +24,22 @@ function useColumnCount() {
   });
 
   useEffect(() => {
+    if (layoutMode === "feed") {
+      setCols(1);
+      return;
+    }
     const update = () => {
       const w = window.innerWidth;
-      setCols(w <= 560 ? 1 : w <= 900 ? 2 : w <= 1280 ? 3 : 4);
+      if (layoutMode === "grid") {
+        setCols(w <= 560 ? 2 : w <= 900 ? 3 : w <= 1280 ? 4 : 5);
+      } else {
+        setCols(w <= 560 ? 1 : w <= 900 ? 2 : w <= 1280 ? 3 : 4);
+      }
     };
+    update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, []);
+  }, [layoutMode]);
 
   return cols;
 }
@@ -41,13 +57,24 @@ interface CardGridProps {
   items: TasteItem[];
   loading?: boolean;
   totalCount?: number;
+  layoutMode?: LayoutMode;
   onDelete: (id: string) => void;
+  onArchive?: (id: string) => void;
   onZoom: (item: TasteItem) => void;
   onClearFilters?: () => void;
 }
 
-export function CardGrid({ items, loading, totalCount = 0, onDelete, onZoom, onClearFilters }: CardGridProps) {
-  const colCount = useColumnCount();
+export function CardGrid({
+  items,
+  loading,
+  totalCount = 0,
+  layoutMode = "masonry",
+  onDelete,
+  onArchive,
+  onZoom,
+  onClearFilters,
+}: CardGridProps) {
+  const colCount = useColumnCount(layoutMode);
 
   const columns = useMemo(
     () => distributeItems(items, colCount),
@@ -128,6 +155,46 @@ export function CardGrid({ items, loading, totalCount = 0, onDelete, onZoom, onC
     );
   }
 
+  if (layoutMode === "grid") {
+    return (
+      <div className="card-grid" style={{ gap: GAP / 2 }}>
+        <AnimatePresence mode="popLayout">
+          {items.map((item, i) => (
+            <TasteCard
+              key={item.id}
+              item={item}
+              index={i}
+              layoutMode="grid"
+              onDelete={onDelete}
+              onArchive={onArchive}
+              onZoom={onZoom}
+            />
+          ))}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  if (layoutMode === "feed") {
+    return (
+      <div className="mx-auto flex max-w-[640px] flex-col" style={{ gap: GAP * 1.5 }}>
+        <AnimatePresence mode="popLayout">
+          {items.map((item, i) => (
+            <TasteCard
+              key={item.id}
+              item={item}
+              index={i}
+              layoutMode="feed"
+              onDelete={onDelete}
+              onArchive={onArchive}
+              onZoom={onZoom}
+            />
+          ))}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
   return (
     <div className="flex" style={{ gap: GAP }}>
       {columns.map((colItems, colIdx) => (
@@ -138,7 +205,9 @@ export function CardGrid({ items, loading, totalCount = 0, onDelete, onZoom, onC
                 key={item.id}
                 item={item}
                 index={getIndex(colIdx, rowIdx)}
+                layoutMode="masonry"
                 onDelete={onDelete}
+                onArchive={onArchive}
                 onZoom={onZoom}
               />
             ))}

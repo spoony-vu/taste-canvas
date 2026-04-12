@@ -2,16 +2,25 @@ import { memo, useState, useCallback, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { categoryMap } from "../lib/categories";
 import { thumbUrl } from "../lib/image";
-import type { TasteItem } from "../lib/types";
+import type { LayoutMode, TasteItem } from "../lib/types";
 
 interface TasteCardProps {
   item: TasteItem;
   index: number;
+  layoutMode?: LayoutMode;
   onDelete: (id: string) => void;
+  onArchive?: (id: string) => void;
   onZoom: (item: TasteItem) => void;
 }
 
-export const TasteCard = memo(function TasteCard({ item, index, onDelete, onZoom }: TasteCardProps) {
+export const TasteCard = memo(function TasteCard({
+  item,
+  index,
+  layoutMode = "masonry",
+  onDelete,
+  onArchive,
+  onZoom,
+}: TasteCardProps) {
   const cat = categoryMap[item.category];
   const hasUrl = item.url && item.url.length > 0;
   const isVideo = !!item.video;
@@ -20,6 +29,213 @@ export const TasteCard = memo(function TasteCard({ item, index, onDelete, onZoom
   const reduced = useReducedMotion();
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  if (layoutMode === "grid") {
+    return (
+      <motion.div
+        layout
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={{ duration: reduced ? 0 : 0.2 }}
+        className="group relative overflow-hidden rounded-lg"
+        style={{
+          aspectRatio: "4/3",
+          opacity: item.hidden ? 0.4 : undefined,
+          willChange: "transform",
+          backfaceVisibility: "hidden",
+        }}
+      >
+        <button
+          onClick={() => onZoom(item)}
+          className="block h-full w-full cursor-zoom-in"
+          onMouseEnter={() => videoRef.current?.play()}
+          onMouseLeave={() => {
+            const v = videoRef.current;
+            if (v) { v.pause(); v.currentTime = 0; }
+          }}
+        >
+          {isVideo ? (
+            <video
+              ref={videoRef}
+              src={item.video}
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              onLoadedData={handleLoad}
+              className="h-full w-full object-cover transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.03]"
+              style={{ opacity: loaded ? 1 : 0 }}
+            />
+          ) : (
+            <img
+              src={thumbUrl(item.thumb, item.image)}
+              alt={item.title}
+              loading="lazy"
+              onLoad={handleLoad}
+              className="h-full w-full object-cover transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.03]"
+              style={{ opacity: loaded ? 1 : 0 }}
+            />
+          )}
+          {isVideo && (
+            <div
+              className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full transition-opacity duration-150 group-hover:opacity-0"
+              style={{ background: "oklch(0.1 0.01 260 / 0.7)" }}
+            >
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="white">
+                <path d="M4 2l10 6-10 6V2z" />
+              </svg>
+            </div>
+          )}
+          <div
+            className="absolute inset-0 flex items-end p-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+            style={{
+              background: "linear-gradient(to top, oklch(0.1 0.01 260 / 0.8), transparent 60%)",
+            }}
+          >
+            <p className="truncate text-[11px] font-medium text-white">
+              {item.title}
+            </p>
+          </div>
+        </button>
+      </motion.div>
+    );
+  }
+
+  if (layoutMode === "feed") {
+    return (
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: reduced ? 0 : 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={{ duration: reduced ? 0 : 0.25, delay: reduced ? 0 : Math.min(index * 0.03, 0.3) }}
+        className="group overflow-hidden rounded-xl"
+        style={{
+          opacity: item.hidden ? 0.4 : undefined,
+          willChange: "transform",
+          backfaceVisibility: "hidden",
+        }}
+      >
+        <button
+          onClick={() => onZoom(item)}
+          className="block w-full cursor-zoom-in text-left"
+          onMouseEnter={() => videoRef.current?.play()}
+          onMouseLeave={() => {
+            const v = videoRef.current;
+            if (v) { v.pause(); v.currentTime = 0; }
+          }}
+        >
+          <div
+            className="relative overflow-hidden"
+            style={item.lqip ? {
+              backgroundImage: `url(${item.lqip})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            } : undefined}
+          >
+            {isVideo ? (
+              <video
+                ref={videoRef}
+                src={item.video}
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                onLoadedData={handleLoad}
+                className="block w-full transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.01]"
+                style={{ opacity: loaded ? 1 : 0 }}
+              />
+            ) : (
+              <img
+                src={thumbUrl(item.thumb, item.image)}
+                alt={item.title}
+                loading="lazy"
+                onLoad={handleLoad}
+                className="block w-full transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.01]"
+                style={{ opacity: loaded ? 1 : 0 }}
+              />
+            )}
+            {isVideo && (
+              <div
+                className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full transition-opacity duration-150 group-hover:opacity-0"
+                style={{ background: "oklch(0.1 0.01 260 / 0.7)" }}
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
+                  <path d="M4 2l10 6-10 6V2z" />
+                </svg>
+              </div>
+            )}
+          </div>
+        </button>
+        <div className="flex items-center justify-between gap-2 px-1 pt-2.5">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <span
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium"
+              style={{
+                background: `color-mix(in oklch, ${cat.dot}, transparent 85%)`,
+                color: cat.color,
+              }}
+            >
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ background: cat.dot }}
+              />
+              {cat.label}
+            </span>
+            <p className="truncate text-[13px] font-medium" style={{ color: "var(--color-text-primary)" }}>
+              {item.title}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {hasUrl && (
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded p-1 transition-opacity duration-150"
+                style={{ color: "var(--color-text-tertiary)" }}
+                title="Visit site"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M6 3h7v7M13 3L5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+            )}
+            {onArchive ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); onArchive(item.id); }}
+                className="rounded p-1 transition-opacity duration-150"
+                style={{ color: "var(--color-text-tertiary)" }}
+                title={item.hidden ? "Unarchive" : "Archive"}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  {item.hidden ? (
+                    <path d="M2 4h12M3 4v8.5a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5V4M6 7l2 2 2-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                  ) : (
+                    <path d="M2 4h12M3 4v8.5a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5V4M6 8h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                  )}
+                </svg>
+              </button>
+            ) : (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
+                className="rounded p-1 transition-opacity duration-150"
+                style={{ color: "var(--color-text-tertiary)" }}
+                title="Remove"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Default: masonry
   return (
     <motion.div
       layout
@@ -28,6 +244,11 @@ export const TasteCard = memo(function TasteCard({ item, index, onDelete, onZoom
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: reduced ? 0 : 0.25, delay: reduced ? 0 : Math.min(index * 0.03, 0.3) }}
       className="group relative overflow-hidden rounded-xl"
+      style={{
+        opacity: item.hidden ? 0.4 : undefined,
+        willChange: "transform",
+        backfaceVisibility: "hidden",
+      }}
     >
       <button
         onClick={() => onZoom(item)}
@@ -67,6 +288,16 @@ export const TasteCard = memo(function TasteCard({ item, index, onDelete, onZoom
               className="block w-full transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.02]"
               style={{ opacity: loaded ? 1 : 0 }}
             />
+          )}
+          {isVideo && (
+            <div
+              className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full transition-opacity duration-150 group-hover:opacity-0"
+              style={{ background: "oklch(0.1 0.01 260 / 0.7)" }}
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
+                <path d="M4 2l10 6-10 6V2z" />
+              </svg>
+            </div>
           )}
           <div
             className="absolute inset-0 flex flex-col justify-end p-3 pt-16 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
@@ -116,24 +347,44 @@ export const TasteCard = memo(function TasteCard({ item, index, onDelete, onZoom
                     </svg>
                   </a>
                 )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(item.id);
-                  }}
-                  className="rounded p-1 opacity-60 transition-opacity duration-150 hover:opacity-100"
-                  style={{ color: "var(--color-text-primary)" }}
-                  title="Remove"
-                >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path
-                      d="M4 4l8 8M12 4l-8 8"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
+                {onArchive ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onArchive(item.id);
+                    }}
+                    className="rounded p-1 opacity-60 transition-opacity duration-150 hover:opacity-100"
+                    style={{ color: "var(--color-text-primary)" }}
+                    title={item.hidden ? "Unarchive" : "Archive"}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      {item.hidden ? (
+                        <path d="M2 4h12M3 4v8.5a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5V4M6 7l2 2 2-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                      ) : (
+                        <path d="M2 4h12M3 4v8.5a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5V4M6 8h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                      )}
+                    </svg>
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(item.id);
+                    }}
+                    className="rounded p-1 opacity-60 transition-opacity duration-150 hover:opacity-100"
+                    style={{ color: "var(--color-text-primary)" }}
+                    title="Remove"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path
+                        d="M4 4l8 8M12 4l-8 8"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
           </div>

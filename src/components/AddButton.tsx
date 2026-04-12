@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from "framer-motion";
 interface AddButtonProps {
   onAddUrl: () => void;
   onAddImage: () => void;
+  onAddTwitter?: () => void;
 }
 
-export function AddButton({ onAddUrl, onAddImage }: AddButtonProps) {
+export function AddButton({ onAddUrl, onAddImage, onAddTwitter }: AddButtonProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -119,6 +120,30 @@ export function AddButton({ onAddUrl, onAddImage }: AddButtonProps) {
               </svg>
               Image
             </button>
+            {onAddTwitter && (
+              <button
+                onClick={() => { onAddTwitter(); close(); }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] font-medium transition-colors duration-100"
+                style={{ color: "var(--color-text-primary)" }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "var(--color-surface-2)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "transparent")
+                }
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ color: "var(--color-text-tertiary)" }}>
+                  <path
+                    d="M9.3 6.7L14 1.5M2 14.5l5.3-5.8M2 1.5h3.5l9 13H11z"
+                    stroke="currentColor"
+                    strokeWidth="1.3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Twitter
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

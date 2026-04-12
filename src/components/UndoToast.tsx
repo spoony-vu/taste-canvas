@@ -22,7 +22,7 @@ export function UndoToast({ title, onUndo, onExpire }: UndoToastProps) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 16 }}
           transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full px-4 py-2.5"
+          className="fixed bottom-20 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full px-4 py-2.5"
           style={{
             background: "var(--color-surface-2)",
             boxShadow: "0 8px 32px oklch(0 0 0 / 0.4)",
