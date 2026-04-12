@@ -1,8 +1,41 @@
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
 import { TasteCard } from "./TasteCard";
 import type { TasteItem } from "../lib/types";
 
 const SKELETON_HEIGHTS = [180, 240, 160, 220, 200, 260, 150, 210];
+const GAP = 16;
+
+function useColumnCount() {
+  const [cols, setCols] = useState(() => {
+    if (typeof window === "undefined") return 4;
+    const w = window.innerWidth;
+    if (w <= 560) return 1;
+    if (w <= 900) return 2;
+    if (w <= 1280) return 3;
+    return 4;
+  });
+
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      setCols(w <= 560 ? 1 : w <= 900 ? 2 : w <= 1280 ? 3 : 4);
+    };
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  return cols;
+}
+
+/** Distribute items round-robin into columns (Pinterest-style chronological). */
+function distributeItems(items: TasteItem[], colCount: number): TasteItem[][] {
+  const columns: TasteItem[][] = Array.from({ length: colCount }, () => []);
+  for (let i = 0; i < items.length; i++) {
+    columns[i % colCount].push(items[i]);
+  }
+  return columns;
+}
 
 interface CardGridProps {
   items: TasteItem[];
@@ -14,6 +47,18 @@ interface CardGridProps {
 }
 
 export function CardGrid({ items, loading, totalCount = 0, onDelete, onZoom, onClearFilters }: CardGridProps) {
+  const colCount = useColumnCount();
+
+  const columns = useMemo(
+    () => distributeItems(items, colCount),
+    [items, colCount]
+  );
+
+  const getIndex = useCallback(
+    (colIdx: number, rowIdx: number) => rowIdx * colCount + colIdx,
+    [colCount]
+  );
+
   if (loading) {
     return (
       <div className="masonry">
@@ -84,18 +129,22 @@ export function CardGrid({ items, loading, totalCount = 0, onDelete, onZoom, onC
   }
 
   return (
-    <div className="masonry">
-      <AnimatePresence mode="popLayout">
-        {items.map((item, i) => (
-          <TasteCard
-            key={item.id}
-            item={item}
-            index={i}
-            onDelete={onDelete}
-            onZoom={onZoom}
-          />
-        ))}
-      </AnimatePresence>
+    <div className="flex" style={{ gap: GAP }}>
+      {columns.map((colItems, colIdx) => (
+        <div key={colIdx} className="flex flex-1 flex-col" style={{ gap: GAP }}>
+          <AnimatePresence mode="popLayout">
+            {colItems.map((item, rowIdx) => (
+              <TasteCard
+                key={item.id}
+                item={item}
+                index={getIndex(colIdx, rowIdx)}
+                onDelete={onDelete}
+                onZoom={onZoom}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
+      ))}
     </div>
   );
 }
