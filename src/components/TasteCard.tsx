@@ -17,7 +17,7 @@ interface TasteCardProps {
 }
 
 const layoutTransition = {
-  layout: { duration: 0.35, ease: [0.16, 1, 0.3, 1] as const },
+  layout: { type: "spring" as const, duration: 0.5, bounce: 0.05 },
 };
 
 export const TasteCard = memo(function TasteCard({

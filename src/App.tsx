@@ -9,7 +9,7 @@ import { ViewToolbar } from "./components/ViewToolbar";
 
 const AddModal = lazy(() => import("./components/AddModal").then(m => ({ default: m.AddModal })));
 const ImageUploadModal = lazy(() => import("./components/ImageUploadModal").then(m => ({ default: m.ImageUploadModal })));
-const Lightbox = lazy(() => import("./components/Lightbox").then(m => ({ default: m.Lightbox })));
+import { Lightbox } from "./components/Lightbox";
 const TwitterImportModal = lazy(() => import("./components/TwitterImportModal").then(m => ({ default: m.TwitterImportModal })));
 import { UndoToast } from "./components/UndoToast";
 import { useManifest } from "./hooks/useManifest";
@@ -176,14 +176,12 @@ export default function App() {
           onClearFilters={clearFilters}
         />
 
-        <Suspense>
-          {lightboxItem && (
-            <Lightbox
-              item={lightboxItem}
-              onClose={() => setLightboxItem(null)}
-            />
-          )}
-        </Suspense>
+        {lightboxItem && (
+          <Lightbox
+            item={lightboxItem}
+            onClose={() => setLightboxItem(null)}
+          />
+        )}
       </LayoutGroup>
 
       <input
