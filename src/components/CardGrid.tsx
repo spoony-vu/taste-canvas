@@ -1,63 +1,15 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
 import { TasteCard } from "./TasteCard";
 import type { LayoutMode, TasteItem } from "../lib/types";
 
 const SKELETON_HEIGHTS = [180, 240, 160, 220, 200, 260, 150, 210];
-const GAP = 16;
-
-function useColumnCount(layoutMode: LayoutMode) {
-  const [cols, setCols] = useState(() => {
-    if (layoutMode === "feed") return 1;
-    if (typeof window === "undefined") return 4;
-    const w = window.innerWidth;
-    if (layoutMode === "grid") {
-      if (w <= 560) return 2;
-      if (w <= 900) return 3;
-      if (w <= 1280) return 4;
-      return 5;
-    }
-    if (w <= 560) return 1;
-    if (w <= 900) return 2;
-    if (w <= 1280) return 3;
-    return 4;
-  });
-
-  useEffect(() => {
-    if (layoutMode === "feed") {
-      setCols(1);
-      return;
-    }
-    const update = () => {
-      const w = window.innerWidth;
-      if (layoutMode === "grid") {
-        setCols(w <= 560 ? 2 : w <= 900 ? 3 : w <= 1280 ? 4 : 5);
-      } else {
-        setCols(w <= 560 ? 1 : w <= 900 ? 2 : w <= 1280 ? 3 : 4);
-      }
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, [layoutMode]);
-
-  return cols;
-}
-
-/** Distribute items round-robin into columns (Pinterest-style chronological). */
-function distributeItems(items: TasteItem[], colCount: number): TasteItem[][] {
-  const columns: TasteItem[][] = Array.from({ length: colCount }, () => []);
-  for (let i = 0; i < items.length; i++) {
-    columns[i % colCount].push(items[i]);
-  }
-  return columns;
-}
 
 interface CardGridProps {
   items: TasteItem[];
   loading?: boolean;
   totalCount?: number;
   layoutMode?: LayoutMode;
+  lightboxId?: string | null;
   onDelete: (id: string) => void;
   onArchive?: (id: string) => void;
   onZoom: (item: TasteItem) => void;
@@ -69,23 +21,12 @@ export function CardGrid({
   loading,
   totalCount = 0,
   layoutMode = "masonry",
+  lightboxId,
   onDelete,
   onArchive,
   onZoom,
   onClearFilters,
 }: CardGridProps) {
-  const colCount = useColumnCount(layoutMode);
-
-  const columns = useMemo(
-    () => distributeItems(items, colCount),
-    [items, colCount]
-  );
-
-  const getIndex = useCallback(
-    (colIdx: number, rowIdx: number) => rowIdx * colCount + colIdx,
-    [colCount]
-  );
-
   if (loading) {
     return (
       <div className="masonry">
@@ -155,65 +96,29 @@ export function CardGrid({
     );
   }
 
-  if (layoutMode === "grid") {
-    return (
-      <div className="card-grid" style={{ gap: GAP / 2 }}>
-        <AnimatePresence mode="popLayout">
-          {items.map((item, i) => (
-            <TasteCard
-              key={item.id}
-              item={item}
-              index={i}
-              layoutMode="grid"
-              onDelete={onDelete}
-              onArchive={onArchive}
-              onZoom={onZoom}
-            />
-          ))}
-        </AnimatePresence>
-      </div>
-    );
-  }
-
-  if (layoutMode === "feed") {
-    return (
-      <div className="mx-auto flex max-w-[640px] flex-col" style={{ gap: GAP * 1.5 }}>
-        <AnimatePresence mode="popLayout">
-          {items.map((item, i) => (
-            <TasteCard
-              key={item.id}
-              item={item}
-              index={i}
-              layoutMode="feed"
-              onDelete={onDelete}
-              onArchive={onArchive}
-              onZoom={onZoom}
-            />
-          ))}
-        </AnimatePresence>
-      </div>
-    );
-  }
+  const containerClass =
+    layoutMode === "grid"
+      ? "card-grid"
+      : layoutMode === "feed"
+        ? "feed-layout"
+        : "masonry";
 
   return (
-    <div className="flex" style={{ gap: GAP }}>
-      {columns.map((colItems, colIdx) => (
-        <div key={colIdx} className="flex flex-1 flex-col" style={{ gap: GAP }}>
-          <AnimatePresence mode="popLayout">
-            {colItems.map((item, rowIdx) => (
-              <TasteCard
-                key={item.id}
-                item={item}
-                index={getIndex(colIdx, rowIdx)}
-                layoutMode="masonry"
-                onDelete={onDelete}
-                onArchive={onArchive}
-                onZoom={onZoom}
-              />
-            ))}
-          </AnimatePresence>
-        </div>
-      ))}
+    <div className={containerClass}>
+      <AnimatePresence mode="popLayout">
+        {items.map((item, i) => (
+          <TasteCard
+            key={item.id}
+            item={item}
+            index={i}
+            layoutMode={layoutMode}
+            isInLightbox={item.id === lightboxId}
+            onDelete={onDelete}
+            onArchive={onArchive}
+            onZoom={onZoom}
+          />
+        ))}
+      </AnimatePresence>
     </div>
   );
 }

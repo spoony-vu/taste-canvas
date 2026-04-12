@@ -9,6 +9,10 @@ interface LightboxProps {
   onClose: () => void;
 }
 
+const imageTransition = {
+  layout: { duration: 0.35, ease: [0.16, 1, 0.3, 1] as const },
+};
+
 export function Lightbox({ item, onClose }: LightboxProps) {
   const [isTall, setIsTall] = useState(false);
   const [src, setSrc] = useState("");
@@ -73,10 +77,10 @@ export function Lightbox({ item, onClose }: LightboxProps) {
           {isTall ? (
             /* Scrollable full-width view for tall/strip images */
             <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 16 }}
-              transition={{ duration: reduced ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: reduced ? 0 : 0.25 }}
               className="fixed inset-0 z-50 overflow-y-auto scrollbar-none"
               onClick={onClose}
             >
@@ -84,17 +88,18 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                 className="mx-auto max-w-3xl px-4 py-16"
                 onClick={(e) => e.stopPropagation()}
               >
-                <img
+                <motion.img
                   ref={imgRef}
+                  layoutId={`image-${item.id}`}
                   src={src}
                   alt={item.title}
                   className="w-full rounded-xl"
                   style={{
                     boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)",
                     filter: fullLoaded || reduced ? "blur(0)" : "blur(8px)",
-                    transform: fullLoaded || reduced ? "scale(1)" : "scale(1.02)",
-                    transition: "filter 0.4s ease-out, transform 0.4s ease-out",
+                    transition: "filter 0.4s ease-out",
                   }}
+                  transition={imageTransition}
                 />
                 <div className="sticky bottom-4 mt-4 flex items-center justify-center gap-3">
                   <div
@@ -149,10 +154,10 @@ export function Lightbox({ item, onClose }: LightboxProps) {
           ) : (
             /* Standard centered lightbox for normal images */
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: reduced ? 0 : 0.25, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: reduced ? 0 : 0.25 }}
               className="fixed inset-4 z-50 flex items-center justify-center"
               onClick={onClose}
             >
@@ -161,7 +166,8 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                 onClick={(e) => e.stopPropagation()}
               >
                 {isVideo ? (
-                  <video
+                  <motion.video
+                    layoutId={`image-${item.id}`}
                     src={item.video}
                     autoPlay
                     loop
@@ -170,10 +176,12 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                     controls
                     className="max-h-[calc(100vh-120px)] max-w-[calc(100vw-64px)] rounded-xl"
                     style={{ boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)" }}
+                    transition={imageTransition}
                   />
                 ) : (
-                  <img
+                  <motion.img
                     ref={imgRef}
+                    layoutId={`image-${item.id}`}
                     src={src}
                     alt={item.title}
                     onLoad={handleLoad}
@@ -181,9 +189,9 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                     style={{
                       boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)",
                       filter: fullLoaded || reduced ? "blur(0)" : "blur(8px)",
-                      transform: fullLoaded || reduced ? "scale(1)" : "scale(1.02)",
-                      transition: "filter 0.4s ease-out, transform 0.4s ease-out",
+                      transition: "filter 0.4s ease-out",
                     }}
+                    transition={imageTransition}
                   />
                 )}
                 <div className="mt-4 flex items-center gap-3">

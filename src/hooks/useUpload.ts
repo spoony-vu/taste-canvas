@@ -57,8 +57,7 @@ export function useUpload(onSuccess: (item: TasteItem) => void) {
       try {
         const compressed = await compressImage(file);
         const form = new FormData();
-        const fieldName = compressed.type.startsWith("video/") ? "video" : "image";
-        form.append(fieldName, compressed);
+        form.append("image", compressed);
         form.append("title", title);
         form.append("category", category);
         form.append("url", url);

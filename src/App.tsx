@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, lazy, Suspense } from "react";
+import { LayoutGroup } from "framer-motion";
 import { FilterBar } from "./components/FilterBar";
 import { SearchInput } from "./components/SearchInput";
 import { CardGrid } from "./components/CardGrid";
@@ -20,12 +21,14 @@ function acceptedFiles(files: FileList | null): File[] {
   );
 }
 
+const isMobile = typeof window !== "undefined" && window.innerWidth <= 640;
+
 function readStoredLayout(): LayoutMode {
   try {
     const v = localStorage.getItem("taste-layout");
     if (v === "grid" || v === "feed" || v === "masonry") return v;
   } catch { /* noop */ }
-  return "masonry";
+  return isMobile ? "feed" : "masonry";
 }
 
 export default function App() {
@@ -126,9 +129,11 @@ export default function App() {
     setTwitterModalOpen(false);
   }, [addItems]);
 
+  const openFileInput = useCallback(() => fileInputRef.current?.click(), []);
+
   return (
     <DropZone onAdd={addItem}>
-    <div className="min-h-screen px-6 pb-24 pt-6">
+    <div className="min-h-screen px-4 pb-24 pt-4 sm:px-6 sm:pt-6">
       <header className="mb-6 flex items-center justify-between gap-4">
         <h1
           className="text-[24px] italic tracking-tight"
@@ -138,11 +143,13 @@ export default function App() {
         </h1>
         <div className="flex items-center gap-3">
           <SearchInput value={search} onChange={setSearch} />
-          <AddButton
-            onAddUrl={() => setUrlModalOpen(true)}
-            onAddImage={() => fileInputRef.current?.click()}
-            onAddTwitter={() => setTwitterModalOpen(true)}
-          />
+          <div className="hidden sm:block">
+            <AddButton
+              onAddUrl={() => setUrlModalOpen(true)}
+              onAddImage={openFileInput}
+              onAddTwitter={() => setTwitterModalOpen(true)}
+            />
+          </div>
         </div>
       </header>
 
@@ -156,16 +163,28 @@ export default function App() {
         />
       </div>
 
-      <CardGrid
-        items={filtered}
-        loading={loading}
-        totalCount={manifest.items.length}
-        layoutMode={layoutMode}
-        onDelete={handleDelete}
-        onArchive={handleArchive}
-        onZoom={setLightboxItem}
-        onClearFilters={clearFilters}
-      />
+      <LayoutGroup>
+        <CardGrid
+          items={filtered}
+          loading={loading}
+          totalCount={manifest.items.length}
+          layoutMode={layoutMode}
+          lightboxId={lightboxItem?.id}
+          onDelete={handleDelete}
+          onArchive={handleArchive}
+          onZoom={setLightboxItem}
+          onClearFilters={clearFilters}
+        />
+
+        <Suspense>
+          {lightboxItem && (
+            <Lightbox
+              item={lightboxItem}
+              onClose={() => setLightboxItem(null)}
+            />
+          )}
+        </Suspense>
+      </LayoutGroup>
 
       <input
         ref={fileInputRef}
@@ -204,13 +223,6 @@ export default function App() {
           />
         )}
 
-        {lightboxItem && (
-          <Lightbox
-            item={lightboxItem}
-            onClose={() => setLightboxItem(null)}
-          />
-        )}
-
         {twitterModalOpen && (
           <TwitterImportModal
             open={twitterModalOpen}
@@ -232,6 +244,8 @@ export default function App() {
         showArchived={showArchived}
         onToggleArchived={() => setShowArchived((p) => !p)}
         archivedCount={archivedCount}
+        onAddUrl={() => setUrlModalOpen(true)}
+        onAddImage={openFileInput}
       />
     </div>
     </DropZone>

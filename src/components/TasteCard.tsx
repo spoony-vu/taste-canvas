@@ -8,15 +8,21 @@ interface TasteCardProps {
   item: TasteItem;
   index: number;
   layoutMode?: LayoutMode;
+  isInLightbox?: boolean;
   onDelete: (id: string) => void;
   onArchive?: (id: string) => void;
   onZoom: (item: TasteItem) => void;
 }
 
+const layoutTransition = {
+  layout: { duration: 0.35, ease: [0.16, 1, 0.3, 1] as const },
+};
+
 export const TasteCard = memo(function TasteCard({
   item,
   index,
   layoutMode = "masonry",
+  isInLightbox,
   onDelete,
   onArchive,
   onZoom,
@@ -29,14 +35,17 @@ export const TasteCard = memo(function TasteCard({
   const reduced = useReducedMotion();
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const imageLayoutId = isInLightbox ? undefined : `image-${item.id}`;
+
   if (layoutMode === "grid") {
     return (
       <motion.div
         layout
+        layoutId={item.id}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0, scale: 0.96 }}
-        transition={{ duration: reduced ? 0 : 0.2 }}
+        transition={{ duration: reduced ? 0 : 0.2, ...layoutTransition }}
         className="group relative overflow-hidden rounded-lg"
         style={{
           aspectRatio: "4/3",
@@ -55,25 +64,29 @@ export const TasteCard = memo(function TasteCard({
           }}
         >
           {isVideo ? (
-            <video
+            <motion.video
               ref={videoRef}
+              layoutId={imageLayoutId}
               src={item.video}
               muted
               loop
               playsInline
               preload="metadata"
               onLoadedData={handleLoad}
-              className="h-full w-full object-cover transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.03]"
+              className="h-full w-full object-cover"
               style={{ opacity: loaded ? 1 : 0 }}
+              transition={layoutTransition}
             />
           ) : (
-            <img
+            <motion.img
+              layoutId={imageLayoutId}
               src={thumbUrl(item.thumb, item.image)}
               alt={item.title}
               loading="lazy"
               onLoad={handleLoad}
-              className="h-full w-full object-cover transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.03]"
+              className="h-full w-full object-cover"
               style={{ opacity: loaded ? 1 : 0 }}
+              transition={layoutTransition}
             />
           )}
           {isVideo && (
@@ -105,10 +118,11 @@ export const TasteCard = memo(function TasteCard({
     return (
       <motion.div
         layout
+        layoutId={item.id}
         initial={{ opacity: 0, y: reduced ? 0 : 12 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96 }}
-        transition={{ duration: reduced ? 0 : 0.25, delay: reduced ? 0 : Math.min(index * 0.03, 0.3) }}
+        transition={{ duration: reduced ? 0 : 0.25, delay: reduced ? 0 : Math.min(index * 0.03, 0.3), ...layoutTransition }}
         className="group overflow-hidden rounded-xl"
         style={{
           opacity: item.hidden ? 0.4 : undefined,
@@ -134,25 +148,29 @@ export const TasteCard = memo(function TasteCard({
             } : undefined}
           >
             {isVideo ? (
-              <video
+              <motion.video
                 ref={videoRef}
+                layoutId={imageLayoutId}
                 src={item.video}
                 muted
                 loop
                 playsInline
                 preload="metadata"
                 onLoadedData={handleLoad}
-                className="block w-full transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.01]"
+                className="block w-full"
                 style={{ opacity: loaded ? 1 : 0 }}
+                transition={layoutTransition}
               />
             ) : (
-              <img
+              <motion.img
+                layoutId={imageLayoutId}
                 src={thumbUrl(item.thumb, item.image)}
                 alt={item.title}
                 loading="lazy"
                 onLoad={handleLoad}
-                className="block w-full transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.01]"
+                className="block w-full"
                 style={{ opacity: loaded ? 1 : 0 }}
+                transition={layoutTransition}
               />
             )}
             {isVideo && (
@@ -239,10 +257,11 @@ export const TasteCard = memo(function TasteCard({
   return (
     <motion.div
       layout
+      layoutId={item.id}
       initial={{ opacity: 0, y: reduced ? 0 : 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
-      transition={{ duration: reduced ? 0 : 0.25, delay: reduced ? 0 : Math.min(index * 0.03, 0.3) }}
+      transition={{ duration: reduced ? 0 : 0.25, delay: reduced ? 0 : Math.min(index * 0.03, 0.3), ...layoutTransition }}
       className="group relative overflow-hidden rounded-xl"
       style={{
         opacity: item.hidden ? 0.4 : undefined,
@@ -268,25 +287,29 @@ export const TasteCard = memo(function TasteCard({
           } : undefined}
         >
           {isVideo ? (
-            <video
+            <motion.video
               ref={videoRef}
+              layoutId={imageLayoutId}
               src={item.video}
               muted
               loop
               playsInline
               preload="metadata"
               onLoadedData={handleLoad}
-              className="block w-full transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.02]"
+              className="block w-full"
               style={{ opacity: loaded ? 1 : 0 }}
+              transition={layoutTransition}
             />
           ) : (
-            <img
+            <motion.img
+              layoutId={imageLayoutId}
               src={thumbUrl(item.thumb, item.image)}
               alt={item.title}
               loading="lazy"
               onLoad={handleLoad}
-              className="block w-full transition-[transform,opacity] duration-250 ease-out group-hover:scale-[1.02]"
+              className="block w-full"
               style={{ opacity: loaded ? 1 : 0 }}
+              transition={layoutTransition}
             />
           )}
           {isVideo && (

@@ -34,7 +34,9 @@ export function useManifest() {
       cachedManifest = next;
       return next;
     });
-  }, []);
+    // Re-sync with server to pick up any items missed during initial load
+    fetchManifest();
+  }, [fetchManifest]);
 
   const addItems = useCallback((items: TasteItem[]) => {
     setManifest((prev) => {
@@ -42,7 +44,8 @@ export function useManifest() {
       cachedManifest = next;
       return next;
     });
-  }, []);
+    fetchManifest();
+  }, [fetchManifest]);
 
   /** Optimistically remove item from state. Returns the removed item for undo. */
   const removeItem = useCallback(

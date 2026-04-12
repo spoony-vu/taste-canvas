@@ -51,12 +51,14 @@ export function ImageUploadModal({ open, files, onClose, onAdd }: ImageUploadMod
 
   // Auto-advance to next file after upload completes
   useEffect(() => {
-    if (uploadedCount > 0 && !uploading && !error && currentIndex < queue.length - 1) {
-      setCurrentIndex((i) => i + 1);
-    } else if (uploadedCount > 0 && !uploading && !error && currentIndex >= queue.length - 1 && queue.length > 0) {
-      onClose();
+    if (uploadedCount > 0 && !uploading && !error) {
+      if (uploadedCount >= queue.length) {
+        onClose();
+      } else {
+        setCurrentIndex(uploadedCount);
+      }
     }
-  }, [uploadedCount, uploading, error, currentIndex, queue.length, onClose]);
+  }, [uploadedCount, uploading, error, queue.length, onClose]);
 
   // Revoke object URLs on unmount
   useEffect(() => {
