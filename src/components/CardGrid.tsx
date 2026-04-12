@@ -1,10 +1,15 @@
+import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
 import { TasteCard } from "./TasteCard";
+import { useImageDimensions } from "../hooks/useImageDimensions";
 import type { LayoutMode, TasteItem } from "../lib/types";
 
 const SKELETON_HEIGHTS = [180, 240, 160, 220, 200, 260, 150, 210];
 const SKELETON_COUNT_GRID = 12;
 const SKELETON_COUNT_FEED = 4;
+
+const ROW_HEIGHT = 8;
+const GAP_Y = 16;
 
 function SkeletonCard({ height, mode }: { height: number; mode: LayoutMode }) {
   if (mode === "grid") {
@@ -23,22 +28,42 @@ function SkeletonCard({ height, mode }: { height: number; mode: LayoutMode }) {
           style={{ aspectRatio: "16/9" }}
         />
         <div className="flex items-center gap-2 px-1 pt-2.5">
-          <div
-            className="skeleton-shimmer h-5 w-16 rounded-full"
-          />
-          <div
-            className="skeleton-shimmer h-4 w-32 rounded"
-          />
+          <div className="skeleton-shimmer h-5 w-16 rounded-full" />
+          <div className="skeleton-shimmer h-4 w-32 rounded" />
         </div>
       </div>
     );
   }
+  // Masonry skeleton: use grid-row span
+  const span = Math.ceil((height + GAP_Y) / ROW_HEIGHT);
   return (
     <div
       className="skeleton-shimmer rounded-xl"
-      style={{ height }}
+      style={{ gridRow: `span ${span}` }}
     />
   );
+}
+
+function useColumnWidth(mode: LayoutMode) {
+  const [width, setWidth] = useState(300);
+
+  const measure = useCallback(() => {
+    if (mode !== "masonry") return;
+    const el = document.querySelector<HTMLElement>(".card-layout");
+    if (!el) return;
+    const cols = getComputedStyle(el).gridTemplateColumns.split(" ").length;
+    const gap = 16;
+    const available = el.clientWidth - gap * (cols - 1);
+    setWidth(Math.floor(available / cols));
+  }, [mode]);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure]);
+
+  return width;
 }
 
 interface CardGridProps {
@@ -64,14 +89,10 @@ export function CardGrid({
   onZoom,
   onClearFilters,
 }: CardGridProps) {
-  if (loading) {
-    const containerClass =
-      layoutMode === "grid"
-        ? "card-grid"
-        : layoutMode === "feed"
-          ? "feed-layout"
-          : "masonry";
+  const columnWidth = useColumnWidth(layoutMode);
+  const { register, getSpan } = useImageDimensions(columnWidth, ROW_HEIGHT, GAP_Y);
 
+  if (loading) {
     const count =
       layoutMode === "grid"
         ? SKELETON_COUNT_GRID
@@ -80,7 +101,7 @@ export function CardGrid({
           : SKELETON_HEIGHTS.length;
 
     return (
-      <div className={containerClass}>
+      <div className="card-layout" data-mode={layoutMode}>
         {Array.from({ length: count }, (_, i) => (
           <SkeletonCard
             key={i}
@@ -147,15 +168,8 @@ export function CardGrid({
     );
   }
 
-  const containerClass =
-    layoutMode === "grid"
-      ? "card-grid"
-      : layoutMode === "feed"
-        ? "feed-layout"
-        : "masonry";
-
   return (
-    <div className={containerClass}>
+    <div className="card-layout" data-mode={layoutMode}>
       <AnimatePresence mode="popLayout">
         {items.map((item, i) => (
           <TasteCard
@@ -167,6 +181,8 @@ export function CardGrid({
             onDelete={onDelete}
             onArchive={onArchive}
             onZoom={onZoom}
+            masonrySpan={layoutMode === "masonry" ? getSpan(item.id) : undefined}
+            onMeasure={layoutMode === "masonry" ? register : undefined}
           />
         ))}
       </AnimatePresence>

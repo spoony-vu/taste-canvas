@@ -9,6 +9,8 @@ interface TasteCardProps {
   index: number;
   layoutMode?: LayoutMode;
   isInLightbox?: boolean;
+  masonrySpan?: number;
+  onMeasure?: (id: string, el: HTMLImageElement | HTMLVideoElement) => void;
   onDelete: (id: string) => void;
   onArchive?: (id: string) => void;
   onZoom: (item: TasteItem) => void;
@@ -23,6 +25,8 @@ export const TasteCard = memo(function TasteCard({
   index,
   layoutMode = "masonry",
   isInLightbox,
+  masonrySpan,
+  onMeasure,
   onDelete,
   onArchive,
   onZoom,
@@ -31,11 +35,24 @@ export const TasteCard = memo(function TasteCard({
   const hasUrl = item.url && item.url.length > 0;
   const isVideo = !!item.video;
   const [loaded, setLoaded] = useState(false);
-  const handleLoad = useCallback(() => setLoaded(true), []);
   const reduced = useReducedMotion();
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const handleLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement | HTMLVideoElement>) => {
+      setLoaded(true);
+      onMeasure?.(item.id, e.currentTarget);
+    },
+    [item.id, onMeasure]
+  );
+
   const imageLayoutId = isInLightbox ? undefined : `image-${item.id}`;
+
+  // Masonry mode: items need grid-row span for variable heights
+  const masonryStyle =
+    layoutMode === "masonry" && masonrySpan
+      ? { gridRow: `span ${masonrySpan}` }
+      : undefined;
 
   if (layoutMode === "grid") {
     return (
@@ -267,11 +284,12 @@ export const TasteCard = memo(function TasteCard({
         opacity: item.hidden ? 0.4 : undefined,
         willChange: "transform",
         backfaceVisibility: "hidden",
+        ...masonryStyle,
       }}
     >
       <button
         onClick={() => onZoom(item)}
-        className="block w-full cursor-zoom-in text-left"
+        className="block h-full w-full cursor-zoom-in text-left"
         onMouseEnter={() => videoRef.current?.play()}
         onMouseLeave={() => {
           const v = videoRef.current;
@@ -279,7 +297,7 @@ export const TasteCard = memo(function TasteCard({
         }}
       >
         <div
-          className="relative overflow-hidden"
+          className="relative h-full overflow-hidden"
           style={item.lqip ? {
             backgroundImage: `url(${item.lqip})`,
             backgroundSize: "cover",
@@ -296,7 +314,7 @@ export const TasteCard = memo(function TasteCard({
               playsInline
               preload="metadata"
               onLoadedData={handleLoad}
-              className="block w-full"
+              className="block h-full w-full object-cover"
               style={{ opacity: loaded ? 1 : 0 }}
               transition={layoutTransition}
             />
@@ -307,7 +325,7 @@ export const TasteCard = memo(function TasteCard({
               alt={item.title}
               loading="lazy"
               onLoad={handleLoad}
-              className="block w-full"
+              className="block h-full w-full object-cover"
               style={{ opacity: loaded ? 1 : 0 }}
               transition={layoutTransition}
             />
