@@ -50,33 +50,49 @@ export function Lightbox({ item, onClose, onUpdateTags }: LightboxProps) {
     onUpdateTags(item.id, item.tags.filter((t) => t !== tag));
   }, [item, onUpdateTags]);
 
-  const handleKey = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    },
-    [onClose]
-  );
-
+  // Keyboard listener — separate effect so onClose identity changes don't reset image loading
   useEffect(() => {
-    if (item) {
-      window.addEventListener("keydown", handleKey);
-      document.body.style.overflow = "hidden";
-      setIsTall(false);
-      setFullLoaded(false);
-      setSrc(thumbUrl(item.thumb, item.image));
-      const fullSrc = imageUrl(item.image);
-      const img = new Image();
-      img.onload = () => {
-        setSrc(fullSrc);
-        setFullLoaded(true);
-      };
-      img.src = fullSrc;
-    }
+    if (!item) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    document.body.style.overflow = "hidden";
     return () => {
-      window.removeEventListener("keydown", handleKey);
+      window.removeEventListener("keydown", handler);
       document.body.style.overflow = "";
     };
-  }, [item, handleKey]);
+  }, [item, onClose]);
+
+  // Full-image preload — only depends on item identity
+  useEffect(() => {
+    if (!item) return;
+    setIsTall(false);
+    setFullLoaded(false);
+    const thumbSrc = thumbUrl(item.thumb, item.image);
+    setSrc(thumbSrc);
+    const fullSrc = imageUrl(item.image);
+    // If thumb and full resolve to the same URL, skip preload and clear blur immediately
+    if (fullSrc === thumbSrc) {
+      setFullLoaded(true);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      setSrc(fullSrc);
+      setFullLoaded(true);
+    };
+    img.onerror = () => {
+      // Full image failed — show thumbnail without blur instead of staying blurry forever
+      setFullLoaded(true);
+    };
+    img.src = fullSrc;
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+      img.src = "";
+    };
+  }, [item]);
 
   const handleLoad = useCallback(() => {
     const img = imgRef.current;
