@@ -17,7 +17,7 @@ interface TasteCardProps {
 }
 
 const layoutTransition = {
-  layout: { type: "spring" as const, duration: 0.5, bounce: 0.05 },
+  layout: { type: "spring" as const, stiffness: 300, damping: 30, mass: 0.8 },
 };
 
 export const TasteCard = memo(function TasteCard({
@@ -271,11 +271,12 @@ export const TasteCard = memo(function TasteCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: reduced ? 0 : 0.25, delay: reduced ? 0 : Math.min(index * 0.03, 0.3), ...layoutTransition }}
-      className="group relative overflow-hidden rounded-xl"
+      className="group relative overflow-hidden"
       style={{
         opacity: item.hidden ? 0.4 : undefined,
         willChange: "transform",
         backfaceVisibility: "hidden",
+        paddingBottom: 16,
         ...masonryStyle,
       }}
     >
@@ -284,7 +285,7 @@ export const TasteCard = memo(function TasteCard({
         className="block h-full w-full cursor-zoom-in text-left"
       >
         <div
-          className="relative h-full overflow-hidden"
+          className="relative h-full overflow-hidden rounded-xl"
           style={item.lqip ? {
             backgroundImage: `url(${item.lqip})`,
             backgroundSize: "cover",

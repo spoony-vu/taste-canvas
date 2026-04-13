@@ -10,7 +10,6 @@ import { ViewToolbar } from "./components/ViewToolbar";
 const AddModal = lazy(() => import("./components/AddModal").then(m => ({ default: m.AddModal })));
 const ImageUploadModal = lazy(() => import("./components/ImageUploadModal").then(m => ({ default: m.ImageUploadModal })));
 import { Lightbox } from "./components/Lightbox";
-const TwitterImportModal = lazy(() => import("./components/TwitterImportModal").then(m => ({ default: m.TwitterImportModal })));
 import { UndoToast } from "./components/UndoToast";
 import { useManifest } from "./hooks/useManifest";
 import type { Category, LayoutMode, TasteItem } from "./lib/types";
@@ -38,7 +37,6 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [urlModalOpen, setUrlModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
-  const [twitterModalOpen, setTwitterModalOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lightboxItem, setLightboxItem] = useState<TasteItem | null>(null);
@@ -125,11 +123,6 @@ export default function App() {
     return items;
   }, [manifest.items, activeFilters, search, showArchived]);
 
-  const handleTwitterImported = useCallback((items: TasteItem[]) => {
-    addItems(items);
-    setTwitterModalOpen(false);
-  }, [addItems]);
-
   const openFileInput = useCallback(() => fileInputRef.current?.click(), []);
 
   return (
@@ -148,7 +141,6 @@ export default function App() {
             <AddButton
               onAddUrl={() => setUrlModalOpen(true)}
               onAddImage={openFileInput}
-              onAddTwitter={() => setTwitterModalOpen(true)}
             />
           </div>
         </div>
@@ -207,6 +199,7 @@ export default function App() {
             open={urlModalOpen}
             onClose={() => setUrlModalOpen(false)}
             onAdd={addItem}
+            onAddItems={addItems}
           />
         )}
 
@@ -222,13 +215,6 @@ export default function App() {
           />
         )}
 
-        {twitterModalOpen && (
-          <TwitterImportModal
-            open={twitterModalOpen}
-            onClose={() => setTwitterModalOpen(false)}
-            onImported={handleTwitterImported}
-          />
-        )}
       </Suspense>
 
       <UndoToast

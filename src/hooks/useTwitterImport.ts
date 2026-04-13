@@ -3,6 +3,7 @@ import type { Category, TasteItem, TwitterBookmark } from "../lib/types";
 
 export function useTwitterImport(onImported: (items: TasteItem[]) => void) {
   const [bookmarks, setBookmarks] = useState<TwitterBookmark[]>([]);
+  const [bookmarksAvailable, setBookmarksAvailable] = useState(true);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState("");
@@ -12,15 +13,45 @@ export function useTwitterImport(onImported: (items: TasteItem[]) => void) {
     setError("");
     try {
       const res = await fetch("/api/twitter-bookmarks");
-      if (!res.ok) throw new Error("Failed to fetch bookmarks");
+      if (!res.ok) {
+        setBookmarksAvailable(false);
+        return;
+      }
       const data = await res.json();
       setBookmarks(data.bookmarks);
-    } catch (err) {
-      setError(String(err));
+    } catch {
+      setBookmarksAvailable(false);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const importFromUrl = useCallback(
+    async (tweetUrl: string, category: Category, tags: string[]) => {
+      setImporting(true);
+      setError("");
+      try {
+        const res = await fetch("/api/tweet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: tweetUrl, category, tags }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({ error: "Import failed" }));
+          throw new Error(data.error || "Import failed");
+        }
+        const data = await res.json();
+        onImported(data.imported);
+        return true;
+      } catch (err) {
+        setError(String(err instanceof Error ? err.message : err));
+        return false;
+      } finally {
+        setImporting(false);
+      }
+    },
+    [onImported]
+  );
 
   const importSelected = useCallback(
     async (
@@ -61,5 +92,14 @@ export function useTwitterImport(onImported: (items: TasteItem[]) => void) {
     [onImported]
   );
 
-  return { bookmarks, loading, importing, error, fetchBookmarks, importSelected };
+  return {
+    bookmarks,
+    bookmarksAvailable,
+    loading,
+    importing,
+    error,
+    fetchBookmarks,
+    importFromUrl,
+    importSelected,
+  };
 }

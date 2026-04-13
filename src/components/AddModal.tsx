@@ -1,15 +1,20 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { categories } from "../lib/categories";
 import type { Category, TasteItem } from "../lib/types";
+
+function isTweetUrl(url: string): boolean {
+  return /(?:twitter\.com|x\.com)\/\w+\/status\/\d+/.test(url);
+}
 
 interface AddModalProps {
   open: boolean;
   onClose: () => void;
   onAdd: (item: TasteItem) => void;
+  onAddItems?: (items: TasteItem[]) => void;
 }
 
-export function AddModal({ open, onClose, onAdd }: AddModalProps) {
+export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<Category>("landing-pages");
@@ -18,6 +23,8 @@ export function AddModal({ open, onClose, onAdd }: AddModalProps) {
   const [fetchingTitle, setFetchingTitle] = useState(false);
   const [error, setError] = useState("");
   const urlRef = useRef<HTMLInputElement>(null);
+
+  const isTweet = useMemo(() => isTweetUrl(url), [url]);
 
   useEffect(() => {
     if (open) {
@@ -37,7 +44,7 @@ export function AddModal({ open, onClose, onAdd }: AddModalProps) {
   }, [open]);
 
   const handleUrlBlur = useCallback(async () => {
-    if (!url || title) return;
+    if (!url || title || isTweetUrl(url)) return;
     try {
       new URL(url);
     } catch {
@@ -72,32 +79,54 @@ export function AddModal({ open, onClose, onAdd }: AddModalProps) {
     setError("");
 
     try {
-      const res = await fetch("/api/screenshot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url,
-          title,
-          category,
-          tags: tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean),
-        }),
-      });
+      const parsedTags = tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
 
-      if (!res.ok) {
-        let msg = `Screenshot failed (${res.status})`;
-        try {
-          const data = await res.json();
-          if (data.error) msg = data.error;
-        } catch {}
-        throw new Error(msg);
+      if (isTweet) {
+        const res = await fetch("/api/tweet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, category, tags: parsedTags }),
+        });
+
+        if (!res.ok) {
+          let msg = `Tweet import failed (${res.status})`;
+          try {
+            const data = await res.json();
+            if (data.error) msg = data.error;
+          } catch {}
+          throw new Error(msg);
+        }
+
+        const { imported } = (await res.json()) as { imported: TasteItem[] };
+        if (onAddItems) {
+          onAddItems(imported);
+        } else {
+          for (const item of imported) onAdd(item);
+        }
+        onClose();
+      } else {
+        const res = await fetch("/api/screenshot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, title, category, tags: parsedTags }),
+        });
+
+        if (!res.ok) {
+          let msg = `Screenshot failed (${res.status})`;
+          try {
+            const data = await res.json();
+            if (data.error) msg = data.error;
+          } catch {}
+          throw new Error(msg);
+        }
+
+        const item = await res.json();
+        onAdd(item);
+        onClose();
       }
-
-      const item = await res.json();
-      onAdd(item);
-      onClose();
     } catch (err) {
       setError(String(err));
     } finally {
@@ -132,7 +161,7 @@ export function AddModal({ open, onClose, onAdd }: AddModalProps) {
             }}
           >
             <h2 className="mb-4 text-[17px] font-semibold">
-              Add Screenshot
+              {isTweet ? "Import Tweet" : "Add Screenshot"}
             </h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
               <input
@@ -149,17 +178,19 @@ export function AddModal({ open, onClose, onAdd }: AddModalProps) {
                   color: "var(--color-text-primary)",
                 }}
               />
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={fetchingTitle ? "Fetching title..." : "Title (auto-filled from URL)"}
-                className="h-10 rounded-lg border-none px-3 text-[14px] outline-none"
-                style={{
-                  background: "var(--color-surface-0)",
-                  color: "var(--color-text-primary)",
-                }}
-              />
+              {!isTweet && (
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={fetchingTitle ? "Fetching title..." : "Title (auto-filled from URL)"}
+                  className="h-10 rounded-lg border-none px-3 text-[14px] outline-none"
+                  style={{
+                    background: "var(--color-surface-0)",
+                    color: "var(--color-text-primary)",
+                  }}
+                />
+              )}
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as Category)}
@@ -212,7 +243,9 @@ export function AddModal({ open, onClose, onAdd }: AddModalProps) {
                     color: "var(--color-surface-0)",
                   }}
                 >
-                  {loading ? "Capturing..." : "Capture"}
+                  {loading
+                    ? isTweet ? "Importing..." : "Capturing..."
+                    : isTweet ? "Import" : "Capture"}
                 </button>
               </div>
             </form>
