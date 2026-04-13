@@ -46,7 +46,8 @@ export const TasteCard = memo(function TasteCard({
     [item.id, onMeasure]
   );
 
-  const imageLayoutId = isInLightbox ? undefined : `image-${item.id}`;
+  // Videos must NOT use layoutId — FLIP uses transform:scale() which distorts video frames.
+  const imageLayoutId = isInLightbox || isVideo ? undefined : `image-${item.id}`;
 
   // Masonry mode: items need grid-row span for variable heights
   const masonryStyle =
