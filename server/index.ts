@@ -462,7 +462,8 @@ app.post("/api/tweet", async (req, res) => {
     const imported = [];
 
     for (const media of tweet.media.all) {
-      const imageUrl = media.type === "video" ? (media.thumbnail_url ?? media.url) : media.url;
+      const hasVideo = media.type === "video" || media.type === "gif";
+      const imageUrl = hasVideo ? (media.thumbnail_url ?? media.url) : media.url;
       const imageRes = await fetch(imageUrl);
       if (!imageRes.ok) continue;
 
@@ -490,7 +491,7 @@ app.post("/api/tweet", async (req, res) => {
       );
 
       let videoPath: string | undefined;
-      if (media.type === "video") {
+      if (hasVideo) {
         const videoRes = await fetch(media.url);
         if (videoRes.ok) {
           const videoBuf = Buffer.from(await videoRes.arrayBuffer());

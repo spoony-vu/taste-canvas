@@ -86,7 +86,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const imported: TasteItem[] = [];
 
     for (const media of tweet.media.all) {
-      const imageUrl = media.type === "video" ? (media.thumbnail_url ?? media.url) : media.url;
+      const hasVideo = media.type === "video" || media.type === "gif";
+      const imageUrl = hasVideo ? (media.thumbnail_url ?? media.url) : media.url;
       const imageRes = await fetch(imageUrl);
       if (!imageRes.ok) continue;
 
@@ -134,7 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       let videoUrl: string | undefined;
-      if (media.type === "video") {
+      if (hasVideo) {
         const videoRes = await fetch(media.url);
         if (videoRes.ok) {
           const videoBuf = Buffer.from(await videoRes.arrayBuffer());

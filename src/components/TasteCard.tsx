@@ -74,17 +74,13 @@ export const TasteCard = memo(function TasteCard({
         <button
           onClick={() => onZoom(item)}
           className="block h-full w-full cursor-zoom-in"
-          onMouseEnter={() => videoRef.current?.play()}
-          onMouseLeave={() => {
-            const v = videoRef.current;
-            if (v) { v.pause(); v.currentTime = 0; }
-          }}
         >
           {isVideo ? (
             <motion.video
               ref={videoRef}
               layoutId={imageLayoutId}
               src={item.video}
+              autoPlay
               muted
               loop
               playsInline
@@ -150,11 +146,6 @@ export const TasteCard = memo(function TasteCard({
         <button
           onClick={() => onZoom(item)}
           className="block w-full cursor-zoom-in text-left"
-          onMouseEnter={() => videoRef.current?.play()}
-          onMouseLeave={() => {
-            const v = videoRef.current;
-            if (v) { v.pause(); v.currentTime = 0; }
-          }}
         >
           <div
             className="relative overflow-hidden"
@@ -169,6 +160,7 @@ export const TasteCard = memo(function TasteCard({
                 ref={videoRef}
                 layoutId={imageLayoutId}
                 src={item.video}
+                autoPlay
                 muted
                 loop
                 playsInline
@@ -290,11 +282,6 @@ export const TasteCard = memo(function TasteCard({
       <button
         onClick={() => onZoom(item)}
         className="block h-full w-full cursor-zoom-in text-left"
-        onMouseEnter={() => videoRef.current?.play()}
-        onMouseLeave={() => {
-          const v = videoRef.current;
-          if (v) { v.pause(); v.currentTime = 0; }
-        }}
       >
         <div
           className="relative h-full overflow-hidden"
@@ -309,6 +296,7 @@ export const TasteCard = memo(function TasteCard({
               ref={videoRef}
               layoutId={imageLayoutId}
               src={item.video}
+              autoPlay
               muted
               loop
               playsInline
