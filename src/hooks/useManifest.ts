@@ -98,6 +98,24 @@ export function useManifest() {
     });
   }, []);
 
+  const updateItem = useCallback(async (id: string, patch: Partial<TasteItem>) => {
+    setManifest((prev) => {
+      const next = {
+        items: prev.items.map((i) => (i.id === id ? { ...i, ...patch } : i)),
+      };
+      cachedManifest = next;
+      return next;
+    });
+    const res = await fetch("/api/manifest");
+    const data = (await res.json()) as Manifest;
+    data.items = data.items.map((i) => (i.id === id ? { ...i, ...patch } : i));
+    await fetch("/api/manifest", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  }, []);
+
   const unarchiveItem = useCallback(async (id: string) => {
     setManifest((prev) => {
       const next = {
@@ -124,5 +142,5 @@ export function useManifest() {
     });
   }, []);
 
-  return { manifest, loading, addItem, addItems, removeItem, confirmDelete, restoreItem, archiveItem, unarchiveItem, refetch: fetchManifest };
+  return { manifest, loading, addItem, addItems, removeItem, confirmDelete, restoreItem, updateItem, archiveItem, unarchiveItem, refetch: fetchManifest };
 }

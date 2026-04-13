@@ -7,6 +7,7 @@ import type { TasteItem } from "../lib/types";
 interface LightboxProps {
   item: TasteItem | null;
   onClose: () => void;
+  onUpdateTags?: (id: string, tags: string[]) => void;
 }
 
 // Shared element spring — physically modeled for buttery smoothness.
@@ -26,13 +27,28 @@ const contentReveal = {
   transition: { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] as const, delay: 0.25 },
 };
 
-export function Lightbox({ item, onClose }: LightboxProps) {
+export function Lightbox({ item, onClose, onUpdateTags }: LightboxProps) {
   const [isTall, setIsTall] = useState(false);
   const [src, setSrc] = useState("");
   const [fullLoaded, setFullLoaded] = useState(false);
+  const [tagInput, setTagInput] = useState("");
   const imgRef = useRef<HTMLImageElement>(null);
+  const tagInputRef = useRef<HTMLInputElement>(null);
   const reduced = useReducedMotion();
   const isVideo = !!item?.video;
+
+  const addTag = useCallback(() => {
+    const tag = tagInput.trim().toLowerCase();
+    if (!tag || !item || !onUpdateTags) return;
+    if (item.tags.includes(tag)) { setTagInput(""); return; }
+    onUpdateTags(item.id, [...item.tags, tag]);
+    setTagInput("");
+  }, [tagInput, item, onUpdateTags]);
+
+  const removeTag = useCallback((tag: string) => {
+    if (!item || !onUpdateTags) return;
+    onUpdateTags(item.id, item.tags.filter((t) => t !== tag));
+  }, [item, onUpdateTags]);
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
@@ -71,6 +87,43 @@ export function Lightbox({ item, onClose }: LightboxProps) {
 
   const cat = item ? categoryMap[item.category] : null;
   const hasUrl = item?.url && item.url.length > 0;
+
+  const tagSection = item && onUpdateTags && (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {item.tags.map((tag) => (
+        <span
+          key={tag}
+          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+          style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)" }}
+        >
+          {tag}
+          <button
+            onClick={(e) => { e.stopPropagation(); removeTag(tag); }}
+            className="ml-0.5 opacity-50 transition-opacity duration-100 hover:opacity-100"
+          >
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </span>
+      ))}
+      <input
+        ref={tagInputRef}
+        value={tagInput}
+        onChange={(e) => setTagInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); addTag(); }
+          if (e.key === "Backspace" && !tagInput && item.tags.length) {
+            removeTag(item.tags[item.tags.length - 1]);
+          }
+        }}
+        placeholder={item.tags.length ? "+" : "Add tag..."}
+        className="min-w-[48px] max-w-[120px] border-0 bg-transparent px-1 py-0.5 text-[11px] font-medium outline-none"
+        style={{ color: "var(--color-text-tertiary)" }}
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
 
   const imageStyle = {
     boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)",
@@ -125,56 +178,59 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                   transition={heroSpring}
                 />
                 <motion.div
-                  className="sticky bottom-4 mt-4 flex items-center justify-center gap-3"
+                  className="sticky bottom-4 mt-4 flex flex-col items-center gap-2"
                   initial={contentReveal.initial}
                   animate={contentReveal.animate}
                   transition={reduced ? { duration: 0 } : contentReveal.transition}
                 >
                   <div
-                    className="flex items-center gap-3 rounded-full px-4 py-2"
+                    className="flex flex-col items-center gap-2 rounded-2xl px-4 py-3"
                     style={{
                       background: "oklch(0.15 0.01 260 / 0.9)",
                       backdropFilter: "blur(12px)",
                       boxShadow: "0 4px 16px oklch(0 0 0 / 0.3)",
                     }}
                   >
-                    <span
-                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"
-                      style={{
-                        background: `color-mix(in oklch, ${cat.dot}, transparent 85%)`,
-                        color: cat.color,
-                      }}
-                    >
+                    <div className="flex items-center gap-3">
                       <span
-                        className="inline-block h-1.5 w-1.5 rounded-full"
-                        style={{ background: cat.dot }}
-                      />
-                      {cat.label}
-                    </span>
-                    <span
-                      className="text-[16px]"
-                      style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-display)" }}
-                    >
-                      {item.title}
-                    </span>
-                    {hasUrl && (
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-medium transition-colors duration-150"
+                        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"
                         style={{
-                          background: "var(--color-surface-2)",
-                          color: "var(--color-text-secondary)",
+                          background: `color-mix(in oklch, ${cat.dot}, transparent 85%)`,
+                          color: cat.color,
                         }}
-                        onClick={(e) => e.stopPropagation()}
                       >
-                        Visit
-                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                          <path d="M6 3h7v7M13 3L5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </a>
-                    )}
+                        <span
+                          className="inline-block h-1.5 w-1.5 rounded-full"
+                          style={{ background: cat.dot }}
+                        />
+                        {cat.label}
+                      </span>
+                      <span
+                        className="text-[16px]"
+                        style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-display)" }}
+                      >
+                        {item.title}
+                      </span>
+                      {hasUrl && (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-medium transition-colors duration-150"
+                          style={{
+                            background: "var(--color-surface-2)",
+                            color: "var(--color-text-secondary)",
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Visit
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                            <path d="M6 3h7v7M13 3L5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </a>
+                      )}
+                    </div>
+                    {tagSection}
                   </div>
                 </motion.div>
               </div>
@@ -214,48 +270,51 @@ export function Lightbox({ item, onClose }: LightboxProps) {
                   />
                 )}
                 <motion.div
-                  className="mt-4 flex items-center gap-3"
+                  className="mt-4 flex flex-col items-center"
                   initial={contentReveal.initial}
                   animate={contentReveal.animate}
                   transition={reduced ? { duration: 0 } : contentReveal.transition}
                 >
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"
-                    style={{
-                      background: `color-mix(in oklch, ${cat.dot}, transparent 85%)`,
-                      color: cat.color,
-                    }}
-                  >
+                  <div className="flex items-center gap-3">
                     <span
-                      className="inline-block h-1.5 w-1.5 rounded-full"
-                      style={{ background: cat.dot }}
-                    />
-                    {cat.label}
-                  </span>
-                  <span
-                    className="text-[16px]"
-                    style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-display)" }}
-                  >
-                    {item.title}
-                  </span>
-                  {hasUrl && (
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-medium transition-colors duration-150"
+                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"
                       style={{
-                        background: "var(--color-surface-2)",
-                        color: "var(--color-text-secondary)",
+                        background: `color-mix(in oklch, ${cat.dot}, transparent 85%)`,
+                        color: cat.color,
                       }}
-                      onClick={(e) => e.stopPropagation()}
                     >
-                      Visit
-                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                        <path d="M6 3h7v7M13 3L5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </a>
-                  )}
+                      <span
+                        className="inline-block h-1.5 w-1.5 rounded-full"
+                        style={{ background: cat.dot }}
+                      />
+                      {cat.label}
+                    </span>
+                    <span
+                      className="text-[16px]"
+                      style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-display)" }}
+                    >
+                      {item.title}
+                    </span>
+                    {hasUrl && (
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-medium transition-colors duration-150"
+                        style={{
+                          background: "var(--color-surface-2)",
+                          color: "var(--color-text-secondary)",
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Visit
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                          <path d="M6 3h7v7M13 3L5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </a>
+                    )}
+                  </div>
+                  {tagSection}
                 </motion.div>
               </div>
             </div>

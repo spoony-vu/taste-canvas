@@ -32,14 +32,18 @@ function readStoredLayout(): LayoutMode {
 }
 
 export default function App() {
-  const { manifest, loading, addItem, addItems, removeItem, confirmDelete, restoreItem, archiveItem, unarchiveItem } = useManifest();
+  const { manifest, loading, addItem, addItems, removeItem, confirmDelete, restoreItem, updateItem, archiveItem, unarchiveItem } = useManifest();
   const [activeFilters, setActiveFilters] = useState<Set<Category>>(new Set());
   const [search, setSearch] = useState("");
   const [urlModalOpen, setUrlModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [lightboxItem, setLightboxItem] = useState<TasteItem | null>(null);
+  const [lightboxId, setLightboxId] = useState<string | null>(null);
+  const lightboxItem = useMemo(
+    () => (lightboxId ? manifest.items.find((i) => i.id === lightboxId) ?? null : null),
+    [lightboxId, manifest.items]
+  );
   const [pendingDelete, setPendingDelete] = useState<TasteItem | null>(null);
   const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(readStoredLayout);
@@ -165,14 +169,15 @@ export default function App() {
           lightboxId={lightboxItem?.id}
           onDelete={handleDelete}
           onArchive={handleArchive}
-          onZoom={setLightboxItem}
+          onZoom={(item) => setLightboxId(item.id)}
           onClearFilters={clearFilters}
         />
 
         {lightboxItem && (
           <Lightbox
             item={lightboxItem}
-            onClose={() => setLightboxItem(null)}
+            onClose={() => setLightboxId(null)}
+            onUpdateTags={(id, tags) => updateItem(id, { tags })}
           />
         )}
       </LayoutGroup>
