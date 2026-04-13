@@ -8,6 +8,9 @@
     "api/screenshot.ts": {
       "memory": 1024,
       "maxDuration": 60
+    },
+    "api/tweet.ts": {
+      "maxDuration": 60
     }
   },
   "rewrites": [

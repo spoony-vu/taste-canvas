@@ -7,6 +7,12 @@ import { captureScreenshot } from "./screenshot.js";
 import { storage, isBlob } from "./storage.js";
 import { generateThumbnail, generateLqip, thumbFilename } from "./thumbnail.js";
 
+/** Strip lone Unicode surrogates that break JSON serialization */
+function sanitizeText(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "\uFFFD");
+}
+
 const app = express();
 const PORT = 3002;
 
@@ -312,7 +318,7 @@ app.get("/api/twitter-bookmarks", async (_req, res) => {
 
       bookmarks.push({
         id: bm.id,
-        text: bm.text,
+        text: sanitizeText(bm.text),
         authorHandle: bm.authorHandle,
         authorName: bm.authorName,
         authorProfileImageUrl: bm.authorProfileImageUrl,
@@ -400,6 +406,137 @@ app.post("/api/import/twitter", async (req, res) => {
   if (!isBlob) updateWikiTastePage(manifest);
 
   res.json({ imported });
+});
+
+// POST import from tweet URL — fetch via fxtwitter API
+app.post("/api/tweet", async (req, res) => {
+  const { url: tweetUrl, category, tags = [] } = req.body as {
+    url: string;
+    category: string;
+    tags?: string[];
+  };
+
+  if (!tweetUrl) {
+    res.status(400).json({ error: "Missing url" });
+    return;
+  }
+
+  // Extract status ID from twitter/x URL
+  const match = tweetUrl.match(/(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/);
+  if (!match) {
+    res.status(400).json({ error: "Invalid tweet URL" });
+    return;
+  }
+  const statusId = match[1];
+
+  try {
+    const fxRes = await fetch(`https://api.fxtwitter.com/status/${statusId}`);
+    if (!fxRes.ok) {
+      res.status(502).json({ error: "Failed to fetch tweet" });
+      return;
+    }
+    const fxData = (await fxRes.json()) as {
+      tweet: {
+        text: string;
+        author: { screen_name: string; name: string };
+        media?: {
+          all: {
+            type: string;
+            url: string;
+            thumbnail_url?: string;
+            width: number;
+            height: number;
+          }[];
+        };
+      };
+    };
+
+    const tweet = fxData.tweet;
+    tweet.text = sanitizeText(tweet.text);
+    if (!tweet.media?.all?.length) {
+      res.status(404).json({ error: "Tweet has no media" });
+      return;
+    }
+
+    const manifest = await storage.readManifest();
+    const imported = [];
+
+    for (const media of tweet.media.all) {
+      const imageUrl = media.type === "video" ? (media.thumbnail_url ?? media.url) : media.url;
+      const imageRes = await fetch(imageUrl);
+      if (!imageRes.ok) continue;
+
+      const buffer = Buffer.from(await imageRes.arrayBuffer());
+      const contentType = imageRes.headers.get("content-type") ?? "image/jpeg";
+      const ext = contentType.includes("png") ? "png" : "jpg";
+      const title = tweet.text
+        .slice(0, 80)
+        .replace(/https?:\/\/\S+/g, "")
+        .trim() || `@${tweet.author.screen_name}`;
+      const slug = title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "")
+        .slice(0, 40);
+      const date = new Date().toISOString().split("T")[0];
+      const filename = `${slug}-${date}.${ext}`;
+      const cat = category || "interactions";
+
+      const { image: imagePath, thumb: thumbPath, lqip } = await storage.uploadImage(
+        cat,
+        filename,
+        buffer,
+        contentType
+      );
+
+      let videoPath: string | undefined;
+      if (media.type === "video") {
+        const videoRes = await fetch(media.url);
+        if (videoRes.ok) {
+          const videoBuf = Buffer.from(await videoRes.arrayBuffer());
+          const videoFilename = `${slug}-${date}.mp4`;
+          if (isBlob) {
+            const blobVideoPath = `taste/${cat}/${videoFilename}`;
+            const { url: blobVideoUrl } = await (await import("@vercel/blob")).put(blobVideoPath, videoBuf, {
+              access: "public",
+              contentType: "video/mp4",
+              addRandomSuffix: false,
+              allowOverwrite: true,
+            });
+            videoPath = blobVideoUrl;
+          } else {
+            const localVideoPath = path.join(storage.vaultDir, cat, videoFilename);
+            fs.writeFileSync(localVideoPath, videoBuf);
+            videoPath = `${cat}/${videoFilename}`;
+          }
+        }
+      }
+
+      const id = crypto.randomUUID().slice(0, 8);
+      const item = {
+        id,
+        title,
+        url: `https://x.com/${tweet.author.screen_name}/status/${statusId}`,
+        image: imagePath,
+        thumb: thumbPath,
+        lqip,
+        ...(videoPath && { video: videoPath }),
+        category: cat as import("../src/lib/types.js").Category,
+        tags: tags,
+        added: date,
+      };
+      manifest.items.unshift(item);
+      imported.push(item);
+    }
+
+    await storage.writeManifest(manifest);
+    if (!isBlob) updateWikiTastePage(manifest);
+
+    res.json({ imported });
+  } catch (err) {
+    console.error("Tweet import failed:", err);
+    res.status(500).json({ error: "Import failed" });
+  }
 });
 
 // DELETE item from manifest
