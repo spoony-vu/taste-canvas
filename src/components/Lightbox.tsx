@@ -64,35 +64,49 @@ export function Lightbox({ item, onClose, onUpdateTags }: LightboxProps) {
     };
   }, [item, onClose]);
 
-  // Full-image preload — only depends on item identity
+  // Extract primitives so the effect doesn't re-run when the item object reference
+  // changes (e.g. manifest refetch, tag edit) — only when a different item is opened.
+  const itemId = item?.id;
+  const itemImage = item?.image;
+  const itemThumb = item?.thumb;
+
   useEffect(() => {
-    if (!item) return;
+    if (!itemId || !itemImage) return;
     setIsTall(false);
     setFullLoaded(false);
-    const thumbSrc = thumbUrl(item.thumb, item.image);
+    const thumbSrc = thumbUrl(itemThumb, itemImage);
     setSrc(thumbSrc);
-    const fullSrc = imageUrl(item.image);
+    const fullSrc = imageUrl(itemImage);
     // If thumb and full resolve to the same URL, skip preload and clear blur immediately
     if (fullSrc === thumbSrc) {
       setFullLoaded(true);
       return;
     }
+    let cancelled = false;
     const img = new Image();
     img.onload = () => {
-      setSrc(fullSrc);
-      setFullLoaded(true);
+      if (!cancelled) {
+        setSrc(fullSrc);
+        setFullLoaded(true);
+      }
     };
     img.onerror = () => {
       // Full image failed — show thumbnail without blur instead of staying blurry forever
-      setFullLoaded(true);
+      if (!cancelled) setFullLoaded(true);
     };
     img.src = fullSrc;
+    // Safety-net timeout — clear blur after 4s no matter what
+    const timer = setTimeout(() => {
+      if (!cancelled) setFullLoaded(true);
+    }, 4000);
     return () => {
+      cancelled = true;
+      clearTimeout(timer);
       img.onload = null;
       img.onerror = null;
       img.src = "";
     };
-  }, [item]);
+  }, [itemId, itemImage, itemThumb]);
 
   const handleLoad = useCallback(() => {
     const img = imgRef.current;
