@@ -8,7 +8,6 @@ interface TasteCardProps {
   item: TasteItem;
   index: number;
   layoutMode?: LayoutMode;
-  isInLightbox?: boolean;
   masonrySpan?: number;
   onMeasure?: (id: string, el: HTMLImageElement | HTMLVideoElement) => void;
   onDelete: (id: string) => void;
@@ -24,7 +23,6 @@ export const TasteCard = memo(function TasteCard({
   item,
   index,
   layoutMode = "masonry",
-  isInLightbox,
   masonrySpan,
   onMeasure,
   onDelete,
@@ -46,8 +44,10 @@ export const TasteCard = memo(function TasteCard({
     [item.id, onMeasure]
   );
 
-  // Videos must NOT use layoutId — FLIP uses transform:scale() which distorts video frames.
-  const imageLayoutId = isInLightbox || isVideo ? undefined : `image-${item.id}`;
+  // Videos: layoutId goes on the poster thumbnail (not the <video> element, which FLIP distorts).
+  // Always keep layoutId so both enter AND exit shared layout morph works.
+  // The lightbox backdrop (z-50) covers the card poster during view — no duplication visible.
+  const imageLayoutId = `image-${item.id}`;
 
   // Masonry mode: items need grid-row span for variable heights
   const masonryStyle =
@@ -66,7 +66,7 @@ export const TasteCard = memo(function TasteCard({
         transition={{ duration: reduced ? 0 : 0.2, ...layoutTransition }}
         className="group relative overflow-hidden rounded-lg"
         style={{
-          aspectRatio: "4/3",
+          aspectRatio: "3/2",
           opacity: item.hidden ? 0.4 : undefined,
           willChange: "transform",
           backfaceVisibility: "hidden",
@@ -77,20 +77,28 @@ export const TasteCard = memo(function TasteCard({
           className="block h-full w-full cursor-zoom-in"
         >
           {isVideo ? (
-            <motion.video
-              ref={videoRef}
-              layoutId={imageLayoutId}
-              src={item.video}
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              onLoadedData={handleLoad}
-              className="h-full w-full object-cover"
-              style={{ opacity: loaded ? 1 : 0 }}
-              transition={layoutTransition}
-            />
+            <>
+              <motion.img
+                layoutId={imageLayoutId}
+                src={thumbUrl(item.thumb, item.image)}
+                alt={item.title}
+                onLoad={(e) => onMeasure?.(item.id, e.currentTarget)}
+                className="h-full w-full object-cover"
+                transition={layoutTransition}
+              />
+              <video
+                ref={videoRef}
+                src={item.video}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                onLoadedData={() => setLoaded(true)}
+                className="absolute inset-0 h-full w-full object-cover"
+                style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.3s ease" }}
+              />
+            </>
           ) : (
             <motion.img
               layoutId={imageLayoutId}
@@ -157,20 +165,28 @@ export const TasteCard = memo(function TasteCard({
             } : undefined}
           >
             {isVideo ? (
-              <motion.video
-                ref={videoRef}
-                layoutId={imageLayoutId}
-                src={item.video}
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                onLoadedData={handleLoad}
-                className="block w-full"
-                style={{ opacity: loaded ? 1 : 0 }}
-                transition={layoutTransition}
-              />
+              <>
+                <motion.img
+                  layoutId={imageLayoutId}
+                  src={thumbUrl(item.thumb, item.image)}
+                  alt={item.title}
+                  onLoad={(e) => onMeasure?.(item.id, e.currentTarget)}
+                  className="block w-full"
+                  transition={layoutTransition}
+                />
+                <video
+                  ref={videoRef}
+                  src={item.video}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  onLoadedData={() => setLoaded(true)}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.3s ease" }}
+                />
+              </>
             ) : (
               <motion.img
                 layoutId={imageLayoutId}
@@ -294,20 +310,28 @@ export const TasteCard = memo(function TasteCard({
           } : undefined}
         >
           {isVideo ? (
-            <motion.video
-              ref={videoRef}
-              layoutId={imageLayoutId}
-              src={item.video}
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              onLoadedData={handleLoad}
-              className="block h-full w-full object-cover"
-              style={{ opacity: loaded ? 1 : 0 }}
-              transition={layoutTransition}
-            />
+            <>
+              <motion.img
+                layoutId={imageLayoutId}
+                src={thumbUrl(item.thumb, item.image)}
+                alt={item.title}
+                onLoad={(e) => onMeasure?.(item.id, e.currentTarget)}
+                className="block h-full w-full object-cover"
+                transition={layoutTransition}
+              />
+              <video
+                ref={videoRef}
+                src={item.video}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                onLoadedData={() => setLoaded(true)}
+                className="absolute inset-0 h-full w-full object-cover"
+                style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.3s ease" }}
+              />
+            </>
           ) : (
             <motion.img
               layoutId={imageLayoutId}

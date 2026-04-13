@@ -131,7 +131,7 @@ export default function App() {
 
   return (
     <DropZone onAdd={addItem}>
-    <div className="min-h-screen px-4 pb-24 pt-4 sm:px-6 sm:pt-6">
+    <div className={`min-h-screen pb-24 pt-4 sm:pt-6 ${layoutMode === "grid" ? "px-1 sm:px-2" : "px-4 sm:px-6"}`}>
       <header className="mb-6 flex items-center justify-between gap-4">
         <h1
           className="text-[24px] italic tracking-tight"
@@ -166,7 +166,6 @@ export default function App() {
           loading={loading}
           totalCount={manifest.items.length}
           layoutMode={layoutMode}
-          lightboxId={lightboxItem?.id}
           onDelete={handleDelete}
           onArchive={handleArchive}
           onZoom={(item) => setLightboxId(item.id)}
