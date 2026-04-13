@@ -16,7 +16,7 @@ function SkeletonCard({ height, mode }: { height: number; mode: LayoutMode }) {
     return (
       <div
         className="skeleton-shimmer rounded-lg"
-        style={{ aspectRatio: "4/3" }}
+        style={{ aspectRatio: "3/2" }}
       />
     );
   }
@@ -71,7 +71,6 @@ interface CardGridProps {
   loading?: boolean;
   totalCount?: number;
   layoutMode?: LayoutMode;
-  lightboxId?: string | null;
   onDelete: (id: string) => void;
   onArchive?: (id: string) => void;
   onZoom: (item: TasteItem) => void;
@@ -83,7 +82,6 @@ export function CardGrid({
   loading,
   totalCount = 0,
   layoutMode = "masonry",
-  lightboxId,
   onDelete,
   onArchive,
   onZoom,
@@ -177,7 +175,6 @@ export function CardGrid({
             item={item}
             index={i}
             layoutMode={layoutMode}
-            isInLightbox={item.id === lightboxId}
             onDelete={onDelete}
             onArchive={onArchive}
             onZoom={onZoom}

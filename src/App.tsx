@@ -12,6 +12,7 @@ const ImageUploadModal = lazy(() => import("./components/ImageUploadModal").then
 import { Lightbox } from "./components/Lightbox";
 import { UndoToast } from "./components/UndoToast";
 import { useManifest } from "./hooks/useManifest";
+import { useDragToScroll } from "./hooks/useDragToScroll";
 import type { Category, LayoutMode, TasteItem } from "./lib/types";
 
 function acceptedFiles(files: FileList | null): File[] {
@@ -48,6 +49,8 @@ export default function App() {
   const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(readStoredLayout);
   const [showArchived, setShowArchived] = useState(false);
+
+  useDragToScroll(layoutMode === "grid");
 
   const handleLayoutChange = useCallback((mode: LayoutMode) => {
     setLayoutMode(mode);
