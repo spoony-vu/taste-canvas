@@ -72,7 +72,6 @@ interface CardGridProps {
   totalCount?: number;
   layoutMode?: LayoutMode;
   onDelete: (id: string) => void;
-  onArchive?: (id: string) => void;
   onZoom: (item: TasteItem) => void;
   onClearFilters?: () => void;
   onUpdateCategory?: (id: string, category: import("../lib/types").Category) => void;
@@ -84,7 +83,6 @@ export function CardGrid({
   totalCount = 0,
   layoutMode = "masonry",
   onDelete,
-  onArchive,
   onZoom,
   onClearFilters,
   onUpdateCategory,
@@ -178,7 +176,6 @@ export function CardGrid({
             index={i}
             layoutMode={layoutMode}
             onDelete={onDelete}
-            onArchive={onArchive}
             onZoom={onZoom}
             onUpdateCategory={onUpdateCategory}
             masonrySpan={layoutMode === "masonry" ? getSpan(item.id) : undefined}

@@ -23,7 +23,6 @@ export interface TasteItem {
   category: Category;
   tags: string[];
   added: string;
-  hidden?: boolean;
 }
 
 export interface Manifest {

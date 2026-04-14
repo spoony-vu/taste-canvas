@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { categories, categoryMap } from "../lib/categories";
 import type { Category } from "../lib/types";
@@ -10,17 +11,40 @@ interface CategoryBadgeProps {
 
 export function CategoryBadge({ category, onUpdate }: CategoryBadgeProps) {
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; flip: boolean }>({
+    top: 0,
+    left: 0,
+    flip: false,
+  });
   const cat = categoryMap[category];
 
   const close = useCallback(() => setOpen(false), []);
 
+  // Recompute position when open
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const dropdownH = 280 + 8; // max-h + padding
+    const flip = rect.bottom + dropdownH > window.innerHeight;
+    setPos({
+      top: flip ? rect.top : rect.bottom + 4,
+      left: rect.left,
+      flip,
+    });
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        close();
-      }
+      const target = e.target as Node;
+      if (
+        triggerRef.current?.contains(target) ||
+        dropdownRef.current?.contains(target)
+      )
+        return;
+      close();
     }
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -39,8 +63,9 @@ export function CategoryBadge({ category, onUpdate }: CategoryBadgeProps) {
   const interactive = !!onUpdate;
 
   return (
-    <div ref={containerRef} className="relative">
+    <>
       <span
+        ref={triggerRef}
         role={interactive ? "button" : undefined}
         onClick={interactive ? (e) => { e.stopPropagation(); setOpen((o) => !o); } : undefined}
         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium ${interactive ? "cursor-pointer transition-[box-shadow] duration-100" : ""}`}
@@ -69,57 +94,65 @@ export function CategoryBadge({ category, onUpdate }: CategoryBadgeProps) {
         )}
       </span>
 
-      <AnimatePresence>
-        {open && onUpdate && (
-          <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.96 }}
-            transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute left-0 top-[calc(100%+4px)] z-50 overflow-hidden rounded-xl py-1"
-            style={{
-              background: "var(--color-surface-2)",
-              boxShadow: "0 12px 32px oklch(0 0 0 / 0.5), 0 0 0 0.5px var(--color-border)",
-              minWidth: 160,
-            }}
-          >
-            <div className="max-h-[280px] overflow-y-auto scrollbar-none">
-              {categories.map((c) => {
-                const active = c.id === category;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdate(c.id);
-                      close();
-                    }}
-                    className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors duration-75"
-                    style={{
-                      color: active ? "var(--color-text-primary)" : "var(--color-text-secondary)",
-                      background: active ? "oklch(1 0 0 / 0.06)" : "transparent",
-                    }}
-                    onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "oklch(1 0 0 / 0.04)"; }}
-                    onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
-                  >
-                    <span
-                      className="h-2 w-2 flex-shrink-0 rounded-full"
-                      style={{ background: c.dot }}
-                    />
-                    <span className="flex-1 text-left">{c.label}</span>
-                    {active && (
-                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ color: "var(--color-text-primary)" }}>
-                        <path d="M3 8l4 4 6-8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      {createPortal(
+        <AnimatePresence>
+          {open && onUpdate && (
+            <motion.div
+              ref={dropdownRef}
+              initial={{ opacity: 0, y: pos.flip ? 4 : -4, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: pos.flip ? 4 : -4, scale: 0.96 }}
+              transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+              className="fixed z-[60] overflow-hidden rounded-xl py-1"
+              style={{
+                top: pos.flip ? undefined : pos.top,
+                bottom: pos.flip ? window.innerHeight - pos.top + 4 : undefined,
+                left: pos.left,
+                background: "var(--color-surface-2)",
+                boxShadow: "0 12px 32px oklch(0 0 0 / 0.5), 0 0 0 0.5px var(--color-border)",
+                minWidth: 160,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="max-h-[280px] overflow-y-auto scrollbar-none">
+                {categories.map((c) => {
+                  const active = c.id === category;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUpdate(c.id);
+                        close();
+                      }}
+                      className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors duration-75"
+                      style={{
+                        color: active ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                        background: active ? "oklch(1 0 0 / 0.06)" : "transparent",
+                      }}
+                      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "oklch(1 0 0 / 0.04)"; }}
+                      onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
+                    >
+                      <span
+                        className="h-2 w-2 flex-shrink-0 rounded-full"
+                        style={{ background: c.dot }}
+                      />
+                      <span className="flex-1 text-left">{c.label}</span>
+                      {active && (
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ color: "var(--color-text-primary)" }}>
+                          <path d="M3 8l4 4 6-8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+    </>
   );
 }

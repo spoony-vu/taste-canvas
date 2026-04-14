@@ -5,9 +5,6 @@ import type { LayoutMode } from "../lib/types";
 interface ViewToolbarProps {
   layoutMode: LayoutMode;
   onLayoutChange: (mode: LayoutMode) => void;
-  showArchived: boolean;
-  onToggleArchived: () => void;
-  archivedCount: number;
   onAddUrl?: () => void;
   onAddImage?: () => void;
 }
@@ -52,9 +49,6 @@ const layouts: { mode: LayoutMode; label: string; icon: React.ReactNode }[] = [
 export function ViewToolbar({
   layoutMode,
   onLayoutChange,
-  showArchived,
-  onToggleArchived,
-  archivedCount,
   onAddUrl,
   onAddImage,
 }: ViewToolbarProps) {
@@ -115,43 +109,6 @@ export function ViewToolbar({
           <span className="relative">{icon}</span>
         </button>
       ))}
-
-      {archivedCount > 0 && (
-        <>
-          <div
-            className="mx-0.5 h-4 w-px"
-            style={{ background: "var(--color-border)" }}
-          />
-          <button
-            onClick={onToggleArchived}
-            className="flex h-8 items-center gap-1.5 rounded-full px-2.5 transition-colors duration-150"
-            style={{
-              color: showArchived
-                ? "var(--color-text-primary)"
-                : "var(--color-text-tertiary)",
-              background: showArchived ? "var(--color-surface-3)" : "transparent",
-            }}
-            title={showArchived ? "Hide archived" : "Show archived"}
-            aria-label={showArchived ? "Hide archived items" : "Show archived items"}
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M2 4h12M3 4v8.5a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5V4M6 8h4"
-                stroke="currentColor"
-                strokeWidth="1.3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span
-              className="text-[11px] font-medium"
-              style={{ fontVariantNumeric: "tabular-nums" }}
-            >
-              {archivedCount}
-            </span>
-          </button>
-        </>
-      )}
 
       {/* Mobile add button */}
       {(onAddUrl || onAddImage) && (

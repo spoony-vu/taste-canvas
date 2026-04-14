@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { categories, categoryMap } from "../lib/categories";
 import type { Category } from "../lib/types";
@@ -11,8 +12,9 @@ interface CategorySelectProps {
 
 export function CategorySelect({ value, onChange, size = "default" }: CategorySelectProps) {
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
   const selected = categoryMap[value];
 
   const h = size === "compact" ? "h-9" : "h-10";
@@ -20,12 +22,26 @@ export function CategorySelect({ value, onChange, size = "default" }: CategorySe
 
   const close = useCallback(() => setOpen(false), []);
 
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setPos({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        close();
-      }
+      const target = e.target as Node;
+      if (
+        triggerRef.current?.contains(target) ||
+        dropdownRef.current?.contains(target)
+      )
+        return;
+      close();
     }
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") close();
@@ -40,15 +56,16 @@ export function CategorySelect({ value, onChange, size = "default" }: CategorySe
 
   // Scroll active item into view when opening
   useEffect(() => {
-    if (open && listRef.current) {
-      const active = listRef.current.querySelector("[data-active]");
+    if (open && dropdownRef.current) {
+      const active = dropdownRef.current.querySelector("[data-active]");
       active?.scrollIntoView({ block: "nearest" });
     }
   }, [open]);
 
   return (
-    <div ref={containerRef} className="relative">
+    <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`flex ${h} w-full items-center gap-2.5 rounded-lg border-none px-3 ${text} outline-none transition-[box-shadow] duration-100`}
@@ -86,78 +103,84 @@ export function CategorySelect({ value, onChange, size = "default" }: CategorySe
         </svg>
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            ref={listRef}
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 overflow-hidden rounded-xl py-1"
-            style={{
-              background: "var(--color-surface-2)",
-              boxShadow:
-                "0 12px 32px oklch(0 0 0 / 0.5), 0 0 0 0.5px var(--color-border)",
-            }}
-          >
-            <div className="max-h-[280px] overflow-y-auto scrollbar-none">
-              {categories.map((cat) => {
-                const active = cat.id === value;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    {...(active ? { "data-active": true } : {})}
-                    onClick={() => {
-                      onChange(cat.id);
-                      close();
-                    }}
-                    className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] transition-colors duration-75"
-                    style={{
-                      color: active
-                        ? "var(--color-text-primary)"
-                        : "var(--color-text-secondary)",
-                      background: active
-                        ? "oklch(1 0 0 / 0.06)"
-                        : "transparent",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!active) e.currentTarget.style.background = "oklch(1 0 0 / 0.04)";
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!active) e.currentTarget.style.background = "transparent";
-                    }}
-                  >
-                    <span
-                      className="h-2 w-2 flex-shrink-0 rounded-full"
-                      style={{ background: cat.dot }}
-                    />
-                    <span className="flex-1 text-left">{cat.label}</span>
-                    {active && (
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 16 16"
-                        fill="none"
-                        style={{ color: "var(--color-text-primary)" }}
-                      >
-                        <path
-                          d="M3 8l4 4 6-8"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      {createPortal(
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              ref={dropdownRef}
+              initial={{ opacity: 0, y: -4, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4, scale: 0.98 }}
+              transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+              className="fixed z-[60] overflow-hidden rounded-xl py-1"
+              style={{
+                top: pos.top,
+                left: pos.left,
+                width: pos.width,
+                background: "var(--color-surface-2)",
+                boxShadow:
+                  "0 12px 32px oklch(0 0 0 / 0.5), 0 0 0 0.5px var(--color-border)",
+              }}
+            >
+              <div className="max-h-[280px] overflow-y-auto scrollbar-none">
+                {categories.map((cat) => {
+                  const active = cat.id === value;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      {...(active ? { "data-active": true } : {})}
+                      onClick={() => {
+                        onChange(cat.id);
+                        close();
+                      }}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] transition-colors duration-75"
+                      style={{
+                        color: active
+                          ? "var(--color-text-primary)"
+                          : "var(--color-text-secondary)",
+                        background: active
+                          ? "oklch(1 0 0 / 0.06)"
+                          : "transparent",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!active) e.currentTarget.style.background = "oklch(1 0 0 / 0.04)";
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!active) e.currentTarget.style.background = "transparent";
+                      }}
+                    >
+                      <span
+                        className="h-2 w-2 flex-shrink-0 rounded-full"
+                        style={{ background: cat.dot }}
+                      />
+                      <span className="flex-1 text-left">{cat.label}</span>
+                      {active && (
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          style={{ color: "var(--color-text-primary)" }}
+                        >
+                          <path
+                            d="M3 8l4 4 6-8"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+    </>
   );
 }

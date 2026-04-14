@@ -33,7 +33,7 @@ function readStoredLayout(): LayoutMode {
 }
 
 export default function App() {
-  const { manifest, loading, addItem, addItems, removeItem, confirmDelete, restoreItem, updateItem, archiveItem, unarchiveItem } = useManifest();
+  const { manifest, loading, addItem, addItems, removeItem, confirmDelete, restoreItem, updateItem } = useManifest();
   const [activeFilters, setActiveFilters] = useState<Set<Category>>(new Set());
   const [search, setSearch] = useState("");
   const [urlModalOpen, setUrlModalOpen] = useState(false);
@@ -48,7 +48,6 @@ export default function App() {
   const [pendingDelete, setPendingDelete] = useState<TasteItem | null>(null);
   const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(readStoredLayout);
-  const [showArchived, setShowArchived] = useState(false);
 
   useDragToScroll(layoutMode === "grid");
 
@@ -81,15 +80,6 @@ export default function App() {
     }
   }, [pendingDelete, removeItem, confirmDelete]);
 
-  const handleArchive = useCallback((id: string) => {
-    const item = manifest.items.find((i) => i.id === id);
-    if (item?.hidden) {
-      unarchiveItem(id);
-    } else {
-      archiveItem(id);
-    }
-  }, [manifest.items, archiveItem, unarchiveItem]);
-
   const handleUndo = useCallback(() => {
     if (pendingDelete) {
       restoreItem(pendingDelete);
@@ -102,17 +92,8 @@ export default function App() {
     setPendingDelete(null);
   }, []);
 
-  const archivedCount = useMemo(
-    () => manifest.items.filter((i) => i.hidden).length,
-    [manifest.items]
-  );
-
   const filtered = useMemo(() => {
     let items = manifest.items;
-
-    if (!showArchived) {
-      items = items.filter((item) => !item.hidden);
-    }
 
     if (activeFilters.size > 0) {
       items = items.filter((item) => activeFilters.has(item.category));
@@ -128,7 +109,7 @@ export default function App() {
     }
 
     return items;
-  }, [manifest.items, activeFilters, search, showArchived]);
+  }, [manifest.items, activeFilters, search]);
 
   const openFileInput = useCallback(() => fileInputRef.current?.click(), []);
 
@@ -170,7 +151,6 @@ export default function App() {
           totalCount={manifest.items.length}
           layoutMode={layoutMode}
           onDelete={handleDelete}
-          onArchive={handleArchive}
           onZoom={(item) => setLightboxId(item.id)}
           onClearFilters={clearFilters}
           onUpdateCategory={(id, category) => updateItem(id, { category })}
@@ -235,9 +215,6 @@ export default function App() {
       <ViewToolbar
         layoutMode={layoutMode}
         onLayoutChange={handleLayoutChange}
-        showArchived={showArchived}
-        onToggleArchived={() => setShowArchived((p) => !p)}
-        archivedCount={archivedCount}
         onAddUrl={() => setUrlModalOpen(true)}
         onAddImage={openFileInput}
       />

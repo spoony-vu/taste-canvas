@@ -11,7 +11,6 @@ interface TasteCardProps {
   masonrySpan?: number;
   onMeasure?: (id: string, el: HTMLImageElement | HTMLVideoElement) => void;
   onDelete: (id: string) => void;
-  onArchive?: (id: string) => void;
   onZoom: (item: TasteItem) => void;
   onUpdateCategory?: (id: string, category: Category) => void;
 }
@@ -27,7 +26,6 @@ export const TasteCard = memo(function TasteCard({
   masonrySpan,
   onMeasure,
   onDelete,
-  onArchive,
   onZoom,
   onUpdateCategory,
 }: TasteCardProps) {
@@ -68,7 +66,6 @@ export const TasteCard = memo(function TasteCard({
         className="group relative overflow-hidden rounded-lg"
         style={{
           aspectRatio: "3/2",
-          opacity: item.hidden ? 0.4 : undefined,
           willChange: "transform",
           backfaceVisibility: "hidden",
         }}
@@ -148,7 +145,6 @@ export const TasteCard = memo(function TasteCard({
         transition={{ duration: reduced ? 0 : 0.25, delay: reduced ? 0 : Math.min(index * 0.03, 0.3), ...layoutTransition }}
         className="group overflow-hidden rounded-xl"
         style={{
-          opacity: item.hidden ? 0.4 : undefined,
           willChange: "transform",
           backfaceVisibility: "hidden",
         }}
@@ -238,33 +234,16 @@ export const TasteCard = memo(function TasteCard({
                 </svg>
               </a>
             )}
-            {onArchive ? (
-              <button
-                onClick={(e) => { e.stopPropagation(); onArchive(item.id); }}
-                className="rounded p-1 transition-opacity duration-150"
-                style={{ color: "var(--color-text-tertiary)" }}
-                title={item.hidden ? "Unarchive" : "Archive"}
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  {item.hidden ? (
-                    <path d="M2 4h12M3 4v8.5a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5V4M6 7l2 2 2-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                  ) : (
-                    <path d="M2 4h12M3 4v8.5a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5V4M6 8h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                  )}
-                </svg>
-              </button>
-            ) : (
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
-                className="rounded p-1 transition-opacity duration-150"
-                style={{ color: "var(--color-text-tertiary)" }}
-                title="Remove"
-              >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </button>
-            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
+              className="rounded p-1 transition-opacity duration-150"
+              style={{ color: "var(--color-text-tertiary)" }}
+              title="Remove"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
         </div>
       </motion.div>
@@ -282,7 +261,6 @@ export const TasteCard = memo(function TasteCard({
       transition={{ duration: reduced ? 0 : 0.25, delay: reduced ? 0 : Math.min(index * 0.03, 0.3), ...layoutTransition }}
       className="group relative overflow-hidden"
       style={{
-        opacity: item.hidden ? 0.4 : undefined,
         willChange: "transform",
         backfaceVisibility: "hidden",
         paddingBottom: 16,
@@ -385,44 +363,24 @@ export const TasteCard = memo(function TasteCard({
                     </svg>
                   </a>
                 )}
-                {onArchive ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onArchive(item.id);
-                    }}
-                    className="rounded p-1 opacity-60 transition-opacity duration-150 hover:opacity-100"
-                    style={{ color: "var(--color-text-primary)" }}
-                    title={item.hidden ? "Unarchive" : "Archive"}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                      {item.hidden ? (
-                        <path d="M2 4h12M3 4v8.5a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5V4M6 7l2 2 2-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                      ) : (
-                        <path d="M2 4h12M3 4v8.5a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5V4M6 8h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                      )}
-                    </svg>
-                  </button>
-                ) : (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(item.id);
-                    }}
-                    className="rounded p-1 opacity-60 transition-opacity duration-150 hover:opacity-100"
-                    style={{ color: "var(--color-text-primary)" }}
-                    title="Remove"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                      <path
-                        d="M4 4l8 8M12 4l-8 8"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </button>
-                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(item.id);
+                  }}
+                  className="rounded p-1 opacity-60 transition-opacity duration-150 hover:opacity-100"
+                  style={{ color: "var(--color-text-primary)" }}
+                  title="Remove"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M4 4l8 8M12 4l-8 8"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>

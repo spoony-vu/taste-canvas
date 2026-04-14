@@ -41,7 +41,7 @@ src/
     categories.ts            # Category metadata
     image.ts                 # Image processing helpers
   hooks/
-    useManifest.ts           # CRUD operations on manifest (add, remove, restore, archive)
+    useManifest.ts           # CRUD operations on manifest (add, remove, restore, update)
     useUpload.ts             # File upload logic
     useImageDimensions.ts    # Image dimension detection
     useTwitterImport.ts      # Twitter/X bookmark import
@@ -55,7 +55,7 @@ src/
     ImageUploadModal.tsx     # File upload modal (lazy loaded)
     TwitterImportModal.tsx   # Twitter import modal (lazy loaded)
     Lightbox.tsx             # Fullscreen image viewer
-    ViewToolbar.tsx          # Layout mode + archive toggle (bottom bar)
+    ViewToolbar.tsx          # Layout mode switcher + mobile add button (bottom bar)
     DropZone.tsx             # Drag-and-drop wrapper
     UndoToast.tsx            # Delete undo notification
 server/
@@ -77,7 +77,7 @@ api/
 ```ts
 type Category = "typeface" | "symbol" | "landing-pages" | "interactions" | "color-palette" | "patterns" | "branding" | "ui" | "graphics" | "tools";
 type LayoutMode = "masonry" | "grid" | "feed";
-interface TasteItem { id, title, url, image, thumb?, lqip?, video?, category, tags, added, hidden? }
+interface TasteItem { id, title, url, image, thumb?, lqip?, video?, category, tags, added }
 interface Manifest { items: TasteItem[] }
 ```
 
@@ -112,6 +112,7 @@ interface Manifest { items: TasteItem[] }
 - **File upload size**: Compress/resize client-side before upload. Vercel has 4MB limit. Always show upload errors — never let it hang silently.
 - **Twitter import**: `mediaObjects[].url` from `~/.ft-bookmarks/bookmarks.jsonl` for real images. Filter by size (>50KB) to skip avatars.
 - **Lightbox image preload effect deps**: The preload effect in `Lightbox.tsx` must depend on primitive values (`item.id`, `item.image`, `item.thumb`), NOT the `item` object. The `lightboxItem` useMemo in `App.tsx` returns a new object reference whenever `manifest.items` changes (background refetch, tag edits, etc.), which re-triggers object-dep effects and resets `fullLoaded` — causing the blur to persist. Always use `onerror` + a timeout safety net on `new Image()` preloads.
+- **Dropdown portals**: `CategoryBadge` and `CategorySelect` dropdowns MUST use `createPortal(…, document.body)` with `position: fixed`. TasteCard (masonry/grid/feed) and modal containers all have `overflow: hidden` — absolute-positioned dropdowns get clipped. Always calculate position from `getBoundingClientRect()` in `useLayoutEffect`, flip if near viewport edge.
 
 ## Related Wiki Pages
 

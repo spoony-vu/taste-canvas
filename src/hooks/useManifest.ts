@@ -80,24 +80,6 @@ export function useManifest() {
     });
   }, []);
 
-  const archiveItem = useCallback(async (id: string) => {
-    setManifest((prev) => {
-      const next = {
-        items: prev.items.map((i) => (i.id === id ? { ...i, hidden: true } : i)),
-      };
-      cachedManifest = next;
-      return next;
-    });
-    const res = await fetch("/api/manifest");
-    const data = (await res.json()) as Manifest;
-    data.items = data.items.map((i) => (i.id === id ? { ...i, hidden: true } : i));
-    await fetch("/api/manifest", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-  }, []);
-
   const updateItem = useCallback(async (id: string, patch: Partial<TasteItem>) => {
     setManifest((prev) => {
       const next = {
@@ -116,31 +98,5 @@ export function useManifest() {
     });
   }, []);
 
-  const unarchiveItem = useCallback(async (id: string) => {
-    setManifest((prev) => {
-      const next = {
-        items: prev.items.map((i) => {
-          if (i.id !== id) return i;
-          const { hidden: _, ...rest } = i;
-          return rest;
-        }),
-      };
-      cachedManifest = next;
-      return next;
-    });
-    const res = await fetch("/api/manifest");
-    const data = (await res.json()) as Manifest;
-    data.items = data.items.map((i) => {
-      if (i.id !== id) return i;
-      const { hidden: _, ...rest } = i;
-      return rest;
-    });
-    await fetch("/api/manifest", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-  }, []);
-
-  return { manifest, loading, addItem, addItems, removeItem, confirmDelete, restoreItem, updateItem, archiveItem, unarchiveItem, refetch: fetchManifest };
+  return { manifest, loading, addItem, addItems, removeItem, confirmDelete, restoreItem, updateItem, refetch: fetchManifest };
 }
