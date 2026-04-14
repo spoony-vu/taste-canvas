@@ -32,10 +32,35 @@ export function Lightbox({ item, onClose, onUpdateTags }: LightboxProps) {
   const [src, setSrc] = useState("");
   const [fullLoaded, setFullLoaded] = useState(false);
   const [tagInput, setTagInput] = useState("");
+  const [closing, setClosing] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
   const reduced = useReducedMotion();
   const isVideo = !!item?.video;
+
+  // Two-phase close for videos: fade out video (200ms), then unmount so poster morphs back.
+  const handleCloseRequest = useCallback(() => {
+    if (isVideo && !closing) {
+      setClosing(true);
+    } else {
+      onClose();
+    }
+  }, [isVideo, closing, onClose]);
+
+  // Ref keeps handleKey stable so the keydown effect doesn't re-run when closing changes.
+  // Without this, closing → handleCloseRequest change → handleKey change → keydown effect
+  // re-runs → setClosing(false) on line 85 resets closing before the 200ms timer fires.
+  const closeRef = useRef(handleCloseRequest);
+  closeRef.current = handleCloseRequest;
+
+  useEffect(() => {
+    if (!closing) return;
+    const timer = setTimeout(() => {
+      setClosing(false);
+      onClose();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [closing, onClose]);
 
   const addTag = useCallback(() => {
     const tag = tagInput.trim().toLowerCase();
@@ -181,7 +206,7 @@ export function Lightbox({ item, onClose, onUpdateTags }: LightboxProps) {
             transition={{ duration: reduced ? 0 : 0.15, ease: "easeOut" }}
             className="fixed inset-0 z-50"
             style={{ background: "oklch(0.06 0.01 260 / 0.95)" }}
-            onClick={onClose}
+            onClick={handleCloseRequest}
           />
         )}
       </AnimatePresence>
@@ -192,7 +217,7 @@ export function Lightbox({ item, onClose, onUpdateTags }: LightboxProps) {
           {isTall ? (
             <div
               className="fixed inset-0 z-50 overflow-y-auto scrollbar-none"
-              onClick={onClose}
+              onClick={handleCloseRequest}
             >
               <div
                 className="mx-auto max-w-3xl px-4 py-16"
@@ -268,38 +293,41 @@ export function Lightbox({ item, onClose, onUpdateTags }: LightboxProps) {
           ) : (
             <div
               className="fixed inset-4 z-50 flex items-center justify-center"
-              onClick={onClose}
+              onClick={handleCloseRequest}
             >
               <div
                 className="relative flex max-h-full max-w-full flex-col items-center"
                 onClick={(e) => e.stopPropagation()}
               >
-                {isVideo ? (
-                  <motion.video
-                    initial={{ opacity: 0, scale: 0.92 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-                    src={item.video}
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    controls
-                    className="max-h-[calc(100vh-120px)] max-w-[calc(100vw-64px)] rounded-xl"
-                    style={imageStyle}
-                  />
-                ) : (
+                <div className="relative">
                   <motion.img
-                    ref={imgRef}
+                    ref={isVideo ? undefined : imgRef}
                     layoutId={`image-${item.id}`}
                     src={src}
                     alt={item.title}
-                    onLoad={handleLoad}
+                    onLoad={isVideo ? undefined : handleLoad}
                     className="max-h-[calc(100vh-120px)] max-w-[calc(100vw-64px)] rounded-xl object-contain"
-                    style={{ ...imageStyle, ...blurStyle }}
+                    style={{ ...imageStyle, ...(isVideo ? {} : blurStyle) }}
                     transition={heroSpring}
                   />
-                )}
+                  <AnimatePresence>
+                    {isVideo && !closing && (
+                      <motion.video
+                        key="lightbox-video"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1, transition: { duration: 0.3, delay: 0.35 } }}
+                        exit={{ opacity: 0, transition: { duration: 0.2 } }}
+                        src={item.video}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        controls
+                        className="absolute inset-0 h-full w-full rounded-xl object-contain"
+                      />
+                    )}
+                  </AnimatePresence>
+                </div>
                 <motion.div
                   className="mt-4 flex flex-col items-center"
                   initial={contentReveal.initial}
@@ -353,7 +381,7 @@ export function Lightbox({ item, onClose, onUpdateTags }: LightboxProps) {
 
           {/* Close button — fades in with content, not instantly */}
           <motion.button
-            onClick={onClose}
+            onClick={handleCloseRequest}
             className="fixed right-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-full transition-colors duration-150"
             style={{
               background: "var(--color-surface-2)",
