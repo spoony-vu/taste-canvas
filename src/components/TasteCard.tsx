@@ -434,6 +434,27 @@ export const TasteCard = memo(function TasteCard({
                 </p>
               </div>
               <div className="flex items-center gap-1">
+                {onUpdateTags && (
+                  <TagPopover
+                    tags={item.tags}
+                    onUpdate={(tags) => onUpdateTags(item.id, tags)}
+                  >
+                    {({ onClick, isOpen }) => (
+                      <button
+                        onClick={onClick}
+                        className="rounded p-1 opacity-60 transition-opacity duration-150 hover:opacity-100"
+                        style={{
+                          color: isOpen || item.tags.length > 0
+                            ? "oklch(0.85 0.1 200)"
+                            : "var(--color-text-primary)",
+                        }}
+                        title="Edit tags"
+                      >
+                        <TagIcon />
+                      </button>
+                    )}
+                  </TagPopover>
+                )}
                 {hasUrl && (
                   <a
                     href={item.url}

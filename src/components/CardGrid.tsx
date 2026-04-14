@@ -75,6 +75,7 @@ interface CardGridProps {
   onArchive?: (id: string) => void;
   onZoom: (item: TasteItem) => void;
   onClearFilters?: () => void;
+  onUpdateTags?: (id: string, tags: string[]) => void;
 }
 
 export function CardGrid({
@@ -86,6 +87,7 @@ export function CardGrid({
   onArchive,
   onZoom,
   onClearFilters,
+  onUpdateTags,
 }: CardGridProps) {
   const columnWidth = useColumnWidth(layoutMode);
   const { register, getSpan } = useImageDimensions(columnWidth, ROW_HEIGHT, GAP_Y);
@@ -178,6 +180,7 @@ export function CardGrid({
             onDelete={onDelete}
             onArchive={onArchive}
             onZoom={onZoom}
+            onUpdateTags={onUpdateTags}
             masonrySpan={layoutMode === "masonry" ? getSpan(item.id) : undefined}
             onMeasure={layoutMode === "masonry" ? register : undefined}
           />

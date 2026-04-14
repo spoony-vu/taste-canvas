@@ -173,6 +173,7 @@ export default function App() {
           onArchive={handleArchive}
           onZoom={(item) => setLightboxId(item.id)}
           onClearFilters={clearFilters}
+          onUpdateTags={(id, tags) => updateItem(id, { tags })}
         />
 
         {lightboxItem && (
