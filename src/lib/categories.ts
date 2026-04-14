@@ -64,6 +64,18 @@ export const categories: CategoryDef[] = [
   },
 ];
 
-export const categoryMap = Object.fromEntries(
+const _map = Object.fromEntries(
   categories.map((c) => [c.id, c])
-) as Record<Category, CategoryDef>;
+) as Record<string, CategoryDef>;
+
+const fallback: CategoryDef = {
+  id: "ui" as Category,
+  label: "Unknown",
+  color: "oklch(0.55 0.01 260)",
+  dot: "oklch(0.45 0.01 260)",
+};
+
+/** Safe lookup — returns fallback for removed/unknown categories */
+export const categoryMap = new Proxy(_map, {
+  get: (target, prop: string) => target[prop] ?? fallback,
+}) as Record<string, CategoryDef>;
