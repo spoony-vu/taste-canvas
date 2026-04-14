@@ -47,9 +47,9 @@ body {
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    var(--color-surface-1) 0%,
-    var(--color-surface-2) 40%,
-    var(--color-surface-1) 80%
+    var(--color-surface-2) 0%,
+    var(--color-surface-3) 40%,
+    var(--color-surface-2) 80%
   );
   background-size: 800px 100%;
   animation: shimmer 1.5s infinite linear;
