@@ -14,9 +14,13 @@ export async function captureScreenshot(
     viewport: { width: 1440, height: 900 },
   });
 
-  await page.goto(url, { waitUntil: "networkidle", timeout: 30000 });
-  // Let animations/lazy images settle
-  await page.waitForTimeout(1500);
+  try {
+    await page.goto(url, { waitUntil: "networkidle", timeout: 15000 });
+  } catch {
+    // networkidle often hangs on heavy sites (WebGL, analytics) — fall back to domcontentloaded
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await page.waitForTimeout(3000);
+  }
 
   const meta = await page.evaluate(`({
     title:
