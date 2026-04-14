@@ -60,7 +60,10 @@ export function useManifest() {
 
   /** Fire the actual DELETE API call. */
   const confirmDelete = useCallback(async (id: string) => {
-    await fetch(`/api/delete?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    const res = await fetch(`/api/delete?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res.ok) {
+      console.error("Delete failed:", res.status, await res.text());
+    }
   }, []);
 
   /** Re-insert an item locally and on the server. */

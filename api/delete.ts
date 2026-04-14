@@ -44,13 +44,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(404).json({ error: "Item not found" });
   }
 
-  // Delete blob image if it's a full URL
-  if (item.image.startsWith("http")) {
-    try {
-      await del(item.image);
-    } catch {
-      // Image may already be deleted, continue
-    }
+  // Delete blob assets
+  const urls = [item.image, item.thumb, item.video].filter(
+    (u): u is string => !!u && u.startsWith("http")
+  );
+  for (const url of urls) {
+    try { await del(url); } catch { /* may already be deleted */ }
   }
 
   manifest.items = manifest.items.filter((i) => i.id !== id);

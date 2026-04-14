@@ -552,20 +552,26 @@ app.post("/api/tweet", async (req, res) => {
   }
 });
 
-// DELETE item from manifest
+// DELETE item from manifest (legacy path-param route)
 app.delete("/api/manifest/:id", async (req, res) => {
+  const id = req.params.id;
   const manifest = await storage.readManifest();
-  const item = manifest.items.find(
-    (i: { id: string }) => i.id === req.params.id
-  );
+  const item = manifest.items.find((i: { id: string }) => i.id === id);
+  if (item) await storage.deleteImage(item.image);
+  manifest.items = manifest.items.filter((i: { id: string }) => i.id !== id);
+  await storage.writeManifest(manifest);
+  if (!isBlob) updateWikiTastePage(manifest);
+  res.json({ ok: true });
+});
 
-  if (item) {
-    await storage.deleteImage(item.image);
-  }
-
-  manifest.items = manifest.items.filter(
-    (i: { id: string }) => i.id !== req.params.id
-  );
+// DELETE item (matches Vercel /api/delete?id=...)
+app.delete("/api/delete", async (req, res) => {
+  const id = req.query.id as string;
+  if (!id) return res.status(400).json({ error: "Missing id" });
+  const manifest = await storage.readManifest();
+  const item = manifest.items.find((i: { id: string }) => i.id === id);
+  if (item) await storage.deleteImage(item.image);
+  manifest.items = manifest.items.filter((i: { id: string }) => i.id !== id);
   await storage.writeManifest(manifest);
   if (!isBlob) updateWikiTastePage(manifest);
   res.json({ ok: true });
