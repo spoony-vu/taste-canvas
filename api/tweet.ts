@@ -89,9 +89,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const hasVideo = media.type === "video" || media.type === "gif";
       const imageUrl = hasVideo ? (media.thumbnail_url ?? media.url) : media.url;
       const imageRes = await fetch(imageUrl);
-      if (!imageRes.ok) continue;
 
-      const buffer = Buffer.from(await imageRes.arrayBuffer());
+      let buffer: Buffer;
+      if (imageRes.ok) {
+        buffer = Buffer.from(await imageRes.arrayBuffer());
+      } else if (hasVideo) {
+        // Thumbnail failed but video may still work — generate a placeholder poster
+        buffer = await sharp({ create: { width: 640, height: 360, channels: 3, background: { r: 24, g: 24, b: 32 } } }).jpeg({ quality: 60 }).toBuffer();
+      } else {
+        continue;
+      }
       const contentType = imageRes.headers.get("content-type") ?? "image/jpeg";
       const ext = contentType.includes("png") ? "png" : "jpg";
       const title = tweet.text
