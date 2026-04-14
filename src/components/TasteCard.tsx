@@ -19,6 +19,8 @@ const layoutTransition = {
   layout: { type: "spring" as const, stiffness: 300, damping: 30, mass: 0.8 },
 };
 
+const EAGER_COUNT = 6;
+
 export const TasteCard = memo(function TasteCard({
   item,
   index,
@@ -34,6 +36,7 @@ export const TasteCard = memo(function TasteCard({
   const [loaded, setLoaded] = useState(false);
   const reduced = useReducedMotion();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const eager = index < EAGER_COUNT;
 
   const handleLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement | HTMLVideoElement>) => {
@@ -54,6 +57,13 @@ export const TasteCard = memo(function TasteCard({
       ? { gridRow: `span ${masonrySpan}` }
       : undefined;
 
+  // LQIP background style — shows blurred placeholder immediately
+  const lqipBg = item.lqip ? {
+    backgroundImage: `url(${item.lqip})`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+  } : undefined;
+
   if (layoutMode === "grid") {
     return (
       <motion.div
@@ -68,6 +78,7 @@ export const TasteCard = memo(function TasteCard({
           aspectRatio: "3/2",
           willChange: "transform",
           backfaceVisibility: "hidden",
+          ...lqipBg,
         }}
       >
         <button
@@ -102,10 +113,11 @@ export const TasteCard = memo(function TasteCard({
               layoutId={imageLayoutId}
               src={thumbUrl(item.thumb, item.image)}
               alt={item.title}
-              loading="lazy"
+              loading={eager ? "eager" : "lazy"}
+              {...(index < 3 ? { fetchPriority: "high" as const } : {})}
               onLoad={handleLoad}
               className="h-full w-full object-cover"
-              style={{ opacity: loaded ? 1 : 0 }}
+              style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.3s ease" }}
               transition={layoutTransition}
             />
           )}
@@ -155,11 +167,7 @@ export const TasteCard = memo(function TasteCard({
         >
           <div
             className="relative overflow-hidden"
-            style={item.lqip ? {
-              backgroundImage: `url(${item.lqip})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            } : undefined}
+            style={lqipBg}
           >
             {isVideo ? (
               <>
@@ -189,10 +197,11 @@ export const TasteCard = memo(function TasteCard({
                 layoutId={imageLayoutId}
                 src={thumbUrl(item.thumb, item.image)}
                 alt={item.title}
-                loading="lazy"
+                loading={eager ? "eager" : "lazy"}
+                {...(index < 3 ? { fetchPriority: "high" as const } : {})}
                 onLoad={handleLoad}
                 className="block w-full"
-                style={{ opacity: loaded ? 1 : 0 }}
+                style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.3s ease" }}
                 transition={layoutTransition}
               />
             )}
@@ -273,11 +282,7 @@ export const TasteCard = memo(function TasteCard({
       >
         <div
           className="relative h-full overflow-hidden rounded-xl"
-          style={item.lqip ? {
-            backgroundImage: `url(${item.lqip})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          } : undefined}
+          style={lqipBg}
         >
           {isVideo ? (
             <>
@@ -307,10 +312,11 @@ export const TasteCard = memo(function TasteCard({
               layoutId={imageLayoutId}
               src={thumbUrl(item.thumb, item.image)}
               alt={item.title}
-              loading="lazy"
+              loading={eager ? "eager" : "lazy"}
+              {...(index < 3 ? { fetchPriority: "high" as const } : {})}
               onLoad={handleLoad}
               className="block h-full w-full object-cover"
-              style={{ opacity: loaded ? 1 : 0 }}
+              style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.3s ease" }}
               transition={layoutTransition}
             />
           )}
