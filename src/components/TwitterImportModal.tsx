@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { categories } from "../lib/categories";
+import { CategorySelect } from "./CategorySelect";
 import { useTwitterImport } from "../hooks/useTwitterImport";
 import type { Category, TasteItem, TwitterBookmark } from "../lib/types";
 
@@ -268,21 +268,7 @@ export function TwitterImportModal({ open, onClose, onImported }: TwitterImportM
               className="flex items-center gap-3 border-t px-6 py-4"
               style={{ borderColor: "var(--color-border)" }}
             >
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as Category)}
-                className="h-9 rounded-lg border-none px-2.5 text-[13px] outline-none"
-                style={{
-                  background: "var(--color-surface-0)",
-                  color: "var(--color-text-primary)",
-                }}
-              >
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.label}
-                  </option>
-                ))}
-              </select>
+              <CategorySelect value={category} onChange={setCategory} size="compact" />
               <input
                 type="text"
                 value={tags}

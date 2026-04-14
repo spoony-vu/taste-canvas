@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { categories } from "../lib/categories";
+import { CategorySelect } from "./CategorySelect";
 import type { Category, TasteItem } from "../lib/types";
 
 function isTweetUrl(url: string): boolean {
@@ -25,6 +25,13 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
   const urlRef = useRef<HTMLInputElement>(null);
 
   const isTweet = useMemo(() => isTweetUrl(url), [url]);
+
+  // Default to "interactions" when a tweet URL is pasted
+  useEffect(() => {
+    if (isTweet && category === "landing-pages") {
+      setCategory("interactions");
+    }
+  }, [isTweet, category]);
 
   useEffect(() => {
     if (open) {
@@ -191,21 +198,7 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
                   }}
                 />
               )}
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as Category)}
-                className="h-10 rounded-lg border-none px-3 text-[14px] outline-none"
-                style={{
-                  background: "var(--color-surface-0)",
-                  color: "var(--color-text-primary)",
-                }}
-              >
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.label}
-                  </option>
-                ))}
-              </select>
+              <CategorySelect value={category} onChange={setCategory} />
               <input
                 type="text"
                 value={tags}

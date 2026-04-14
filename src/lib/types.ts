@@ -7,7 +7,8 @@ export type Category =
   | "patterns"
   | "branding"
   | "ui"
-  | "graphics";
+  | "graphics"
+  | "tools";
 
 export type LayoutMode = "masonry" | "grid" | "feed";
 

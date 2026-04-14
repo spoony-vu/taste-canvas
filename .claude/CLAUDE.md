@@ -75,7 +75,7 @@ api/
 ## Key Types
 
 ```ts
-type Category = "typeface" | "symbol" | "landing-pages" | "interactions" | "color-palette" | "patterns" | "branding" | "ui" | "graphics";
+type Category = "typeface" | "symbol" | "landing-pages" | "interactions" | "color-palette" | "patterns" | "branding" | "ui" | "graphics" | "tools";
 type LayoutMode = "masonry" | "grid" | "feed";
 interface TasteItem { id, title, url, image, thumb?, lqip?, video?, category, tags, added, hidden? }
 interface Manifest { items: TasteItem[] }

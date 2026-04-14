@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { categories } from "../lib/categories";
+import { CategorySelect } from "./CategorySelect";
 import { useUpload } from "../hooks/useUpload";
 import type { Category, TasteItem } from "../lib/types";
 
@@ -192,21 +192,7 @@ export function DropZone({ children, onAdd }: DropZoneProps) {
                     color: "var(--color-text-primary)",
                   }}
                 />
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as Category)}
-                  className="h-10 rounded-lg border-none px-3 text-[14px] outline-none"
-                  style={{
-                    background: "var(--color-surface-0)",
-                    color: "var(--color-text-primary)",
-                  }}
-                >
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.label}
-                    </option>
-                  ))}
-                </select>
+                <CategorySelect value={category} onChange={setCategory} />
                 <input
                   type="url"
                   value={url}
