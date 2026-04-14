@@ -114,7 +114,7 @@ export function CategoryBadge({ category, onUpdate }: CategoryBadgeProps) {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="max-h-[280px] overflow-y-auto scrollbar-none">
+              <div>
                 {categories.map((c) => {
                   const active = c.id === category;
                   return (

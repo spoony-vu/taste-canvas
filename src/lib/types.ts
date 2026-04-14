@@ -3,7 +3,6 @@ export type Category =
   | "symbol"
   | "landing-pages"
   | "interactions"
-  | "color-palette"
   | "patterns"
   | "branding"
   | "ui"

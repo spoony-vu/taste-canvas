@@ -266,7 +266,7 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
                   style={{ background: "var(--color-surface-0)", color: "var(--color-text-primary)" }}
                 />
               </div>
-              <div className="max-h-[200px] overflow-y-auto scrollbar-none">
+              <div>
                 {filteredSuggestions.map((c) => (
                   <button
                     key={c.id}

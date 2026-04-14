@@ -32,13 +32,7 @@ export const categories: CategoryDef[] = [
     color: "oklch(0.75 0.15 200)",
     dot: "oklch(0.65 0.2 200)",
   },
-  {
-    id: "color-palette",
-    label: "Color Palette",
-    color: "oklch(0.75 0.15 280)",
-    dot: "oklch(0.65 0.2 280)",
-  },
-  {
+{
     id: "patterns",
     label: "Patterns",
     color: "oklch(0.75 0.15 320)",

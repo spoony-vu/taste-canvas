@@ -122,7 +122,7 @@ export function CategorySelect({ value, onChange, size = "default" }: CategorySe
                   "0 12px 32px oklch(0 0 0 / 0.5), 0 0 0 0.5px var(--color-border)",
               }}
             >
-              <div className="max-h-[280px] overflow-y-auto scrollbar-none">
+              <div>
                 {categories.map((cat) => {
                   const active = cat.id === value;
                   return (
