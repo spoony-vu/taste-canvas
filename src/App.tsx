@@ -173,7 +173,7 @@ export default function App() {
           onArchive={handleArchive}
           onZoom={(item) => setLightboxId(item.id)}
           onClearFilters={clearFilters}
-          onUpdateTags={(id, tags) => updateItem(id, { tags })}
+          onUpdateCategory={(id, category) => updateItem(id, { category })}
         />
 
         {lightboxItem && (
@@ -181,6 +181,7 @@ export default function App() {
             item={lightboxItem}
             onClose={() => setLightboxId(null)}
             onUpdateTags={(id, tags) => updateItem(id, { tags })}
+            onUpdateCategory={(id, category) => updateItem(id, { category })}
           />
         )}
       </LayoutGroup>

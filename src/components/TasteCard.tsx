@@ -1,16 +1,8 @@
 import { memo, useState, useCallback, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { categoryMap } from "../lib/categories";
 import { thumbUrl } from "../lib/image";
-import { TagPopover } from "./TagPopover";
-import type { LayoutMode, TasteItem } from "../lib/types";
-
-const TagIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-    <path d="M2.5 8.8V3.5a1 1 0 011-1h5.3a1 1 0 01.7.3l4.2 4.2a1 1 0 010 1.4l-5.3 5.3a1 1 0 01-1.4 0L2.8 9.5a1 1 0 01-.3-.7z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-    <circle cx="6" cy="6" r="1" fill="currentColor" />
-  </svg>
-);
+import { CategoryBadge } from "./CategoryBadge";
+import type { Category, LayoutMode, TasteItem } from "../lib/types";
 
 interface TasteCardProps {
   item: TasteItem;
@@ -21,7 +13,7 @@ interface TasteCardProps {
   onDelete: (id: string) => void;
   onArchive?: (id: string) => void;
   onZoom: (item: TasteItem) => void;
-  onUpdateTags?: (id: string, tags: string[]) => void;
+  onUpdateCategory?: (id: string, category: Category) => void;
 }
 
 const layoutTransition = {
@@ -37,9 +29,8 @@ export const TasteCard = memo(function TasteCard({
   onDelete,
   onArchive,
   onZoom,
-  onUpdateTags,
+  onUpdateCategory,
 }: TasteCardProps) {
-  const cat = categoryMap[item.category];
   const hasUrl = item.url && item.url.length > 0;
   const isVideo = !!item.video;
   const [loaded, setLoaded] = useState(false);
@@ -142,28 +133,6 @@ export const TasteCard = memo(function TasteCard({
             </p>
           </div>
         </button>
-        {onUpdateTags && (
-          <div className="absolute right-1.5 top-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-            <TagPopover
-              tags={item.tags}
-              onUpdate={(tags) => onUpdateTags(item.id, tags)}
-            >
-              {({ onClick, isOpen }) => (
-                <button
-                  onClick={onClick}
-                  className="flex h-7 w-7 items-center justify-center rounded-full transition-colors duration-100"
-                  style={{
-                    background: isOpen ? "oklch(0.3 0.01 260 / 0.9)" : "oklch(0.1 0.01 260 / 0.7)",
-                    color: item.tags.length > 0 ? "oklch(0.85 0.1 200)" : "white",
-                  }}
-                  title="Edit tags"
-                >
-                  <TagIcon />
-                </button>
-              )}
-            </TagPopover>
-          </div>
-        )}
       </motion.div>
     );
   }
@@ -245,45 +214,15 @@ export const TasteCard = memo(function TasteCard({
         </button>
         <div className="flex items-center justify-between gap-2 px-1 pt-2.5">
           <div className="flex items-center gap-2 overflow-hidden">
-            <span
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium"
-              style={{
-                background: `color-mix(in oklch, ${cat.dot}, transparent 85%)`,
-                color: cat.color,
-              }}
-            >
-              <span
-                className="inline-block h-1.5 w-1.5 rounded-full"
-                style={{ background: cat.dot }}
-              />
-              {cat.label}
-            </span>
+            <CategoryBadge
+              category={item.category}
+              onUpdate={onUpdateCategory ? (c) => onUpdateCategory(item.id, c) : undefined}
+            />
             <p className="truncate text-[13px] font-medium" style={{ color: "var(--color-text-primary)" }}>
               {item.title}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {onUpdateTags && (
-              <TagPopover
-                tags={item.tags}
-                onUpdate={(tags) => onUpdateTags(item.id, tags)}
-              >
-                {({ onClick, isOpen }) => (
-                  <button
-                    onClick={onClick}
-                    className="rounded p-1 transition-opacity duration-150"
-                    style={{
-                      color: isOpen || item.tags.length > 0
-                        ? "var(--color-text-primary)"
-                        : "var(--color-text-tertiary)",
-                    }}
-                    title="Edit tags"
-                  >
-                    <TagIcon />
-                  </button>
-                )}
-              </TagPopover>
-            )}
             {hasUrl && (
               <a
                 href={item.url}
@@ -416,45 +355,15 @@ export const TasteCard = memo(function TasteCard({
           >
             <div className="flex items-end justify-between gap-2">
               <div className="flex flex-col gap-1.5">
-                <span
-                  className="inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium"
-                  style={{
-                    background: `color-mix(in oklch, ${cat.dot}, transparent 85%)`,
-                    color: cat.color,
-                  }}
-                >
-                  <span
-                    className="inline-block h-1.5 w-1.5 rounded-full"
-                    style={{ background: cat.dot }}
-                  />
-                  {cat.label}
-                </span>
+                <CategoryBadge
+                  category={item.category}
+                  onUpdate={onUpdateCategory ? (c) => onUpdateCategory(item.id, c) : undefined}
+                />
                 <p className="text-[13px] font-medium leading-tight text-white">
                   {item.title}
                 </p>
               </div>
               <div className="flex items-center gap-1">
-                {onUpdateTags && (
-                  <TagPopover
-                    tags={item.tags}
-                    onUpdate={(tags) => onUpdateTags(item.id, tags)}
-                  >
-                    {({ onClick, isOpen }) => (
-                      <button
-                        onClick={onClick}
-                        className="rounded p-1 opacity-60 transition-opacity duration-150 hover:opacity-100"
-                        style={{
-                          color: isOpen || item.tags.length > 0
-                            ? "oklch(0.85 0.1 200)"
-                            : "var(--color-text-primary)",
-                        }}
-                        title="Edit tags"
-                      >
-                        <TagIcon />
-                      </button>
-                    )}
-                  </TagPopover>
-                )}
                 {hasUrl && (
                   <a
                     href={item.url}

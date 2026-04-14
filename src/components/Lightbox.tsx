@@ -1,13 +1,15 @@
 import { useEffect, useCallback, useState, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { categoryMap } from "../lib/categories";
+import { categories, categoryMap } from "../lib/categories";
+import { CategoryBadge } from "./CategoryBadge";
 import { imageUrl, thumbUrl } from "../lib/image";
-import type { TasteItem } from "../lib/types";
+import type { Category, TasteItem } from "../lib/types";
 
 interface LightboxProps {
   item: TasteItem | null;
   onClose: () => void;
   onUpdateTags?: (id: string, tags: string[]) => void;
+  onUpdateCategory?: (id: string, category: Category) => void;
 }
 
 // Shared element spring — physically modeled for buttery smoothness.
@@ -27,7 +29,7 @@ const contentReveal = {
   transition: { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] as const, delay: 0.25 },
 };
 
-export function Lightbox({ item, onClose, onUpdateTags }: LightboxProps) {
+export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: LightboxProps) {
   const [isTall, setIsTall] = useState(false);
   const [src, setSrc] = useState("");
   const [fullLoaded, setFullLoaded] = useState(false);
@@ -143,40 +145,159 @@ export function Lightbox({ item, onClose, onUpdateTags }: LightboxProps) {
   const cat = item ? categoryMap[item.category] : null;
   const hasUrl = item?.url && item.url.length > 0;
 
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Category-based tag suggestions: show categories not already in tags
+  const suggestions = item
+    ? categories.filter((c) => c.id !== item.category && !item.tags.includes(c.id))
+    : [];
+
+  // Filter suggestions by input text
+  const filteredSuggestions = tagInput.trim()
+    ? suggestions.filter((c) => c.label.toLowerCase().includes(tagInput.toLowerCase()))
+    : suggestions;
+
+  useEffect(() => {
+    if (!showSuggestions) return;
+    function handleClick(e: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)
+          && tagInputRef.current && !tagInputRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    window.addEventListener("mousedown", handleClick);
+    return () => window.removeEventListener("mousedown", handleClick);
+  }, [showSuggestions]);
+
+  const addCategoryTag = useCallback((catId: string) => {
+    if (!item || !onUpdateTags) return;
+    if (!item.tags.includes(catId)) {
+      onUpdateTags(item.id, [...item.tags, catId]);
+    }
+    setTagInput("");
+    setShowSuggestions(false);
+  }, [item, onUpdateTags]);
+
   const tagSection = item && onUpdateTags && (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-      {item.tags.map((tag) => (
-        <span
-          key={tag}
-          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
-          style={{ background: "var(--color-surface-2)", color: "var(--color-text-secondary)" }}
-        >
-          {tag}
-          <button
-            onClick={(e) => { e.stopPropagation(); removeTag(tag); }}
-            className="ml-0.5 opacity-50 transition-opacity duration-100 hover:opacity-100"
+      {item.tags.map((tag) => {
+        const tagCat = categoryMap[tag as Category];
+        return (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+            style={{
+              background: tagCat
+                ? `color-mix(in oklch, ${tagCat.dot}, transparent 85%)`
+                : "var(--color-surface-2)",
+              color: tagCat ? tagCat.color : "var(--color-text-secondary)",
+            }}
           >
-            <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
-              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-        </span>
-      ))}
-      <input
-        ref={tagInputRef}
-        value={tagInput}
-        onChange={(e) => setTagInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") { e.preventDefault(); addTag(); }
-          if (e.key === "Backspace" && !tagInput && item.tags.length) {
-            removeTag(item.tags[item.tags.length - 1]);
-          }
-        }}
-        placeholder={item.tags.length ? "+" : "Add tag..."}
-        className="min-w-[48px] max-w-[120px] border-0 bg-transparent px-1 py-0.5 text-[11px] font-medium outline-none"
-        style={{ color: "var(--color-text-tertiary)" }}
-        onClick={(e) => e.stopPropagation()}
-      />
+            {tagCat && (
+              <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: tagCat.dot }} />
+            )}
+            {tagCat ? tagCat.label : tag}
+            <button
+              onClick={(e) => { e.stopPropagation(); removeTag(tag); }}
+              className="ml-0.5 opacity-50 transition-opacity duration-100 hover:opacity-100"
+            >
+              <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </span>
+        );
+      })}
+      <div className="relative">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowSuggestions((s) => !s);
+            setTimeout(() => tagInputRef.current?.focus(), 60);
+          }}
+          className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[13px] transition-colors duration-100"
+          style={{
+            background: showSuggestions ? "var(--color-surface-3)" : "var(--color-surface-2)",
+            color: "var(--color-text-tertiary)",
+          }}
+          title="Add category tag"
+        >
+          +
+        </button>
+        <AnimatePresence>
+          {showSuggestions && (
+            <motion.div
+              ref={suggestionsRef}
+              initial={{ opacity: 0, y: -4, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4, scale: 0.96 }}
+              transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+              className="absolute bottom-full left-0 z-50 mb-2 overflow-hidden rounded-xl py-1"
+              style={{
+                background: "var(--color-surface-2)",
+                boxShadow: "0 12px 32px oklch(0 0 0 / 0.5), 0 0 0 0.5px var(--color-border)",
+                minWidth: 180,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-2 pb-1 pt-1.5">
+                <input
+                  ref={tagInputRef}
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (filteredSuggestions.length > 0) {
+                        addCategoryTag(filteredSuggestions[0].id);
+                      } else if (tagInput.trim()) {
+                        addTag();
+                        setShowSuggestions(false);
+                      }
+                    }
+                    if (e.key === "Escape") {
+                      setShowSuggestions(false);
+                    }
+                  }}
+                  placeholder="Filter or type..."
+                  className="h-7 w-full rounded-md border-none px-2 text-[12px] outline-none"
+                  style={{ background: "var(--color-surface-0)", color: "var(--color-text-primary)" }}
+                />
+              </div>
+              <div className="max-h-[200px] overflow-y-auto scrollbar-none">
+                {filteredSuggestions.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); addCategoryTag(c.id); }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] transition-colors duration-75"
+                    style={{ color: "var(--color-text-secondary)", background: "transparent" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "oklch(1 0 0 / 0.04)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ background: c.dot }} />
+                    {c.label}
+                  </button>
+                ))}
+                {filteredSuggestions.length === 0 && tagInput.trim() && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); addTag(); setShowSuggestions(false); }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] transition-colors duration-75"
+                    style={{ color: "var(--color-text-tertiary)", background: "transparent" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "oklch(1 0 0 / 0.04)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  >
+                    Add "{tagInput.trim()}"
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 
@@ -247,19 +368,10 @@ export function Lightbox({ item, onClose, onUpdateTags }: LightboxProps) {
                     }}
                   >
                     <div className="flex items-center gap-3">
-                      <span
-                        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"
-                        style={{
-                          background: `color-mix(in oklch, ${cat.dot}, transparent 85%)`,
-                          color: cat.color,
-                        }}
-                      >
-                        <span
-                          className="inline-block h-1.5 w-1.5 rounded-full"
-                          style={{ background: cat.dot }}
-                        />
-                        {cat.label}
-                      </span>
+                      <CategoryBadge
+                        category={item.category}
+                        onUpdate={onUpdateCategory ? (c) => onUpdateCategory(item.id, c) : undefined}
+                      />
                       <span
                         className="text-[16px]"
                         style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-display)" }}
