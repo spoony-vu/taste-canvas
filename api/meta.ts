@@ -44,12 +44,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const ogDescription = head.match(
       /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i
     )?.[1];
+    const ogImage = head.match(
+      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i
+    )?.[1];
     const htmlTitle = head.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1];
 
     const title = decodeEntities(ogTitle ?? htmlTitle ?? "");
     const description = decodeEntities(ogDescription ?? "");
+    const image = ogImage ? decodeEntities(ogImage) : "";
 
-    return res.json({ title, description });
+    return res.json({ title, description, image });
   } catch (err) {
     return res.status(502).json({ error: String(err) });
   }

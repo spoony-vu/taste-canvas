@@ -107,6 +107,9 @@ app.get("/api/meta", async (req, res) => {
     const ogDescription = head.match(
       /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i
     )?.[1];
+    const ogImage = head.match(
+      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i
+    )?.[1];
     const htmlTitle = head.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1];
 
     const decode = (s: string) =>
@@ -123,6 +126,7 @@ app.get("/api/meta", async (req, res) => {
     res.json({
       title: decode(ogTitle ?? htmlTitle ?? ""),
       description: decode(ogDescription ?? ""),
+      image: ogImage ? decode(ogImage) : "",
     });
   } catch (err) {
     res.status(502).json({ error: String(err) });

@@ -2,7 +2,15 @@ import { memo, useState, useCallback, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { categoryMap } from "../lib/categories";
 import { thumbUrl } from "../lib/image";
+import { TagPopover } from "./TagPopover";
 import type { LayoutMode, TasteItem } from "../lib/types";
+
+const TagIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+    <path d="M2.5 8.8V3.5a1 1 0 011-1h5.3a1 1 0 01.7.3l4.2 4.2a1 1 0 010 1.4l-5.3 5.3a1 1 0 01-1.4 0L2.8 9.5a1 1 0 01-.3-.7z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="6" cy="6" r="1" fill="currentColor" />
+  </svg>
+);
 
 interface TasteCardProps {
   item: TasteItem;
@@ -13,6 +21,7 @@ interface TasteCardProps {
   onDelete: (id: string) => void;
   onArchive?: (id: string) => void;
   onZoom: (item: TasteItem) => void;
+  onUpdateTags?: (id: string, tags: string[]) => void;
 }
 
 const layoutTransition = {
@@ -28,6 +37,7 @@ export const TasteCard = memo(function TasteCard({
   onDelete,
   onArchive,
   onZoom,
+  onUpdateTags,
 }: TasteCardProps) {
   const cat = categoryMap[item.category];
   const hasUrl = item.url && item.url.length > 0;
@@ -132,6 +142,28 @@ export const TasteCard = memo(function TasteCard({
             </p>
           </div>
         </button>
+        {onUpdateTags && (
+          <div className="absolute right-1.5 top-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+            <TagPopover
+              tags={item.tags}
+              onUpdate={(tags) => onUpdateTags(item.id, tags)}
+            >
+              {({ onClick, isOpen }) => (
+                <button
+                  onClick={onClick}
+                  className="flex h-7 w-7 items-center justify-center rounded-full transition-colors duration-100"
+                  style={{
+                    background: isOpen ? "oklch(0.3 0.01 260 / 0.9)" : "oklch(0.1 0.01 260 / 0.7)",
+                    color: item.tags.length > 0 ? "oklch(0.85 0.1 200)" : "white",
+                  }}
+                  title="Edit tags"
+                >
+                  <TagIcon />
+                </button>
+              )}
+            </TagPopover>
+          </div>
+        )}
       </motion.div>
     );
   }
@@ -231,6 +263,27 @@ export const TasteCard = memo(function TasteCard({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            {onUpdateTags && (
+              <TagPopover
+                tags={item.tags}
+                onUpdate={(tags) => onUpdateTags(item.id, tags)}
+              >
+                {({ onClick, isOpen }) => (
+                  <button
+                    onClick={onClick}
+                    className="rounded p-1 transition-opacity duration-150"
+                    style={{
+                      color: isOpen || item.tags.length > 0
+                        ? "var(--color-text-primary)"
+                        : "var(--color-text-tertiary)",
+                    }}
+                    title="Edit tags"
+                  >
+                    <TagIcon />
+                  </button>
+                )}
+              </TagPopover>
+            )}
             {hasUrl && (
               <a
                 href={item.url}

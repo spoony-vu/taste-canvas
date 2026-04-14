@@ -115,23 +115,46 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
         }
         onClose();
       } else {
-        const res = await fetch("/api/screenshot", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url, title, category, tags: parsedTags }),
-        });
+        let item: TasteItem | null = null;
 
-        if (!res.ok) {
-          let msg = `Screenshot failed (${res.status})`;
-          try {
-            const data = await res.json();
-            if (data.error) msg = data.error;
-          } catch {}
-          throw new Error(msg);
+        // Try screenshot first
+        try {
+          const res = await fetch("/api/screenshot", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url, title, category, tags: parsedTags }),
+          });
+          if (res.ok) {
+            item = await res.json();
+          }
+        } catch {}
+
+        // Screenshot failed — fall back to OG image
+        if (!item) {
+          const metaRes = await fetch(`/api/meta?url=${encodeURIComponent(url)}`);
+          const meta = metaRes.ok ? await metaRes.json() : null;
+
+          if (meta?.image) {
+            // Fetch the OG image and upload it
+            const imgRes = await fetch(meta.image);
+            if (!imgRes.ok) throw new Error("Failed to fetch OG image");
+            const blob = await imgRes.blob();
+            const form = new FormData();
+            form.append("image", blob, "og-image.webp");
+            form.append("title", title || meta.title || url);
+            form.append("category", category);
+            form.append("url", url);
+            if (parsedTags.length) form.append("tags", JSON.stringify(parsedTags));
+
+            const uploadRes = await fetch("/api/upload", { method: "POST", body: form });
+            if (!uploadRes.ok) throw new Error("Upload failed");
+            item = await uploadRes.json();
+          } else {
+            throw new Error("Screenshot failed and no OG image available");
+          }
         }
 
-        const item = await res.json();
-        onAdd(item);
+        onAdd(item!);
         onClose();
       }
     } catch (err) {
