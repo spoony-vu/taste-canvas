@@ -121,8 +121,8 @@ export default function App() {
   return (
     <DropZone onAdd={addItem}>
     <div className={`min-h-screen pb-24 pt-4 sm:pt-6 ${layoutMode === "grid" ? "px-1 sm:px-2" : "px-4 sm:px-6"}`}>
-      <header className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="flex items-center">
+      <header className="mb-6 flex items-center gap-4">
+        <h1 className="flex flex-1 items-center">
           <button
             type="button"
             onClick={clearFilters}
@@ -135,8 +135,10 @@ export default function App() {
             <span className="sr-only">Taste Canvas</span>
           </button>
         </h1>
-        <div className="flex items-center gap-1.5 sm:gap-3">
+        <div className="flex flex-1 justify-center">
           <SearchInput value={search} onChange={setSearch} />
+        </div>
+        <div className="flex flex-1 items-center justify-end gap-1.5 sm:gap-3">
           <ThemeToggle />
           <div className="hidden sm:block">
             <AddButton

@@ -112,6 +112,7 @@ interface Manifest { items: TasteItem[] }
 - **File upload size**: Compress/resize client-side before upload. Vercel has 4MB limit. Always show upload errors — never let it hang silently.
 - **Twitter import**: `mediaObjects[].url` from `~/.ft-bookmarks/bookmarks.jsonl` for real images. Filter by size (>50KB) to skip avatars.
 - **Lightbox image preload effect deps**: The preload effect in `Lightbox.tsx` must depend on primitive values (`item.id`, `item.image`, `item.thumb`), NOT the `item` object. The `lightboxItem` useMemo in `App.tsx` returns a new object reference whenever `manifest.items` changes (background refetch, tag edits, etc.), which re-triggers object-dep effects and resets `fullLoaded` — causing the blur to persist. Always use `onerror` + a timeout safety net on `new Image()` preloads.
+- **Dual backend routes**: Every API call must work on BOTH local Express (`server/index.ts`) and Vercel Functions (`api/*.ts`). The client calls one URL — if a route exists in only one backend, the other silently 404s. Always add/check both when touching endpoints.
 - **Dropdown portals**: `CategoryBadge` and `CategorySelect` dropdowns MUST use `createPortal(…, document.body)` with `position: fixed`. TasteCard (masonry/grid/feed) and modal containers all have `overflow: hidden` — absolute-positioned dropdowns get clipped. Always calculate position from `getBoundingClientRect()` in `useLayoutEffect`, flip if near viewport edge.
 
 ## Related Wiki Pages
