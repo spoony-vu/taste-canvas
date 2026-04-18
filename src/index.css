@@ -14,7 +14,7 @@
   --color-hover-strong: oklch(1 0 0 / 0.06);
   --color-floating-bg: oklch(0.15 0.01 260 / 0.85);
   --color-floating-ring: oklch(0.3 0.01 260 / 0.5);
-  --font-display: "Instrument Serif", serif;
+  --font-display: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 /* Light theme overrides */
