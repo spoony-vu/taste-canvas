@@ -121,11 +121,16 @@ export default function App() {
     <DropZone onAdd={addItem}>
     <div className={`min-h-screen pb-24 pt-4 sm:pt-6 ${layoutMode === "grid" ? "px-1 sm:px-2" : "px-4 sm:px-6"}`}>
       <header className="mb-6 flex items-center justify-between gap-4">
-        <h1
-          className="text-[24px] italic tracking-tight"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          Taste Canvas
+        <h1 className="flex items-center" aria-label="Taste Canvas">
+          <img
+            src="/favicon.svg"
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8 select-none"
+            draggable={false}
+          />
+          <span className="sr-only">Taste Canvas</span>
         </h1>
         <div className="flex items-center gap-1.5 sm:gap-3">
           <SearchInput value={search} onChange={setSearch} />
