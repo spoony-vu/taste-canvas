@@ -7,6 +7,7 @@ import { AddButton } from "./components/AddButton";
 import { DropZone } from "./components/DropZone";
 import { ViewToolbar } from "./components/ViewToolbar";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { FlowerLogo } from "./components/FlowerLogo";
 
 const AddModal = lazy(() => import("./components/AddModal").then(m => ({ default: m.AddModal })));
 const ImageUploadModal = lazy(() => import("./components/ImageUploadModal").then(m => ({ default: m.ImageUploadModal })));
@@ -122,14 +123,7 @@ export default function App() {
     <div className={`min-h-screen pb-24 pt-4 sm:pt-6 ${layoutMode === "grid" ? "px-1 sm:px-2" : "px-4 sm:px-6"}`}>
       <header className="mb-6 flex items-center justify-between gap-4">
         <h1 className="flex items-center" aria-label="Taste Canvas">
-          <img
-            src="/favicon.svg"
-            alt=""
-            width={32}
-            height={32}
-            className="h-8 w-8 select-none"
-            draggable={false}
-          />
+          <FlowerLogo size={44} className="select-none" />
           <span className="sr-only">Taste Canvas</span>
         </h1>
         <div className="flex items-center gap-1.5 sm:gap-3">
