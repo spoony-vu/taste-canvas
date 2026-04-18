@@ -122,9 +122,18 @@ export default function App() {
     <DropZone onAdd={addItem}>
     <div className={`min-h-screen pb-24 pt-4 sm:pt-6 ${layoutMode === "grid" ? "px-1 sm:px-2" : "px-4 sm:px-6"}`}>
       <header className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="flex items-center" aria-label="Taste Canvas">
-          <FlowerLogo size={44} className="select-none" />
-          <span className="sr-only">Taste Canvas</span>
+        <h1 className="flex items-center">
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="flex items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
+            aria-label="Taste Canvas — reset filters"
+            title="Reset filters"
+          >
+            <FlowerLogo size={44} className="select-none" />
+            <span className="sr-only">Taste Canvas</span>
+          </button>
         </h1>
         <div className="flex items-center gap-1.5 sm:gap-3">
           <SearchInput value={search} onChange={setSearch} />
