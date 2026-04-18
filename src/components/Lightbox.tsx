@@ -190,8 +190,8 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
             style={{
               background: tagCat
                 ? `color-mix(in oklch, ${tagCat.dot}, transparent 85%)`
-                : "var(--color-surface-2)",
-              color: tagCat ? tagCat.color : "var(--color-text-secondary)",
+                : "oklch(0.22 0.01 260)",
+              color: tagCat ? tagCat.color : "oklch(0.75 0.01 260)",
             }}
           >
             {tagCat && (
@@ -218,8 +218,8 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
           }}
           className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[13px] transition-colors duration-100"
           style={{
-            background: showSuggestions ? "var(--color-surface-3)" : "var(--color-surface-2)",
-            color: "var(--color-text-tertiary)",
+            background: showSuggestions ? "oklch(0.28 0.01 260)" : "oklch(0.22 0.01 260)",
+            color: "oklch(0.65 0.01 260)",
           }}
           title="Add category tag"
         >
@@ -374,7 +374,7 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
                       />
                       <span
                         className="text-[16px]"
-                        style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-display)" }}
+                        style={{ color: "oklch(0.95 0.01 260)", fontFamily: "var(--font-display)" }}
                       >
                         {item.title}
                       </span>
@@ -385,8 +385,8 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
                           rel="noopener noreferrer"
                           className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-medium transition-colors duration-150"
                           style={{
-                            background: "var(--color-surface-2)",
-                            color: "var(--color-text-secondary)",
+                            background: "oklch(0.22 0.01 260)",
+                            color: "oklch(0.85 0.01 260)",
                           }}
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -462,7 +462,7 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
                     </span>
                     <span
                       className="text-[16px]"
-                      style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-display)" }}
+                      style={{ color: "oklch(0.95 0.01 260)", fontFamily: "var(--font-display)" }}
                     >
                       {item.title}
                     </span>
@@ -473,8 +473,8 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-medium transition-colors duration-150"
                         style={{
-                          background: "var(--color-surface-2)",
-                          color: "var(--color-text-secondary)",
+                          background: "oklch(0.22 0.01 260)",
+                          color: "oklch(0.85 0.01 260)",
                         }}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -496,8 +496,8 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
             onClick={handleCloseRequest}
             className="fixed right-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-full transition-colors duration-150"
             style={{
-              background: "var(--color-surface-2)",
-              color: "var(--color-text-secondary)",
+              background: "oklch(0.22 0.01 260)",
+              color: "oklch(0.85 0.01 260)",
             }}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
