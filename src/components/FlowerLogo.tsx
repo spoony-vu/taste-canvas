@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 const PETALS = 6;
@@ -5,7 +6,7 @@ const RING = 11;
 const PETAL_R = 10;
 const WOBBLE = 0.05;
 const CENTER_R = 6;
-const LIFT = 2.6;
+const LIFT = 5;
 
 const COLORS = [
   "#F08A2E", // top
@@ -51,56 +52,65 @@ interface FlowerLogoProps {
 
 export function FlowerLogo({ size = 44, className }: FlowerLogoProps) {
   const reduced = useReducedMotion();
+  const [hovered, setHovered] = useState<number | null>(null);
 
   return (
-    <motion.svg
+    <svg
       width={size}
       height={size}
       viewBox="0 0 64 64"
       className={className}
-      initial="rest"
-      whileHover={reduced ? undefined : "hover"}
-      animate="rest"
       style={{ overflow: "visible" }}
       aria-hidden="true"
     >
+      {/* Visible animated petals */}
+      {petals.map((p, i) => {
+        const lift = !reduced && hovered === i;
+        return (
+          <motion.g
+            key={`petal-${i}`}
+            animate={{
+              x: lift ? p.dx * LIFT : 0,
+              y: lift ? p.dy * LIFT : 0,
+            }}
+            transition={{
+              type: "spring",
+              stiffness: 380,
+              damping: 18,
+              mass: 0.5,
+            }}
+          >
+            <ellipse
+              cx={p.cx}
+              cy={p.cy}
+              rx={p.rx}
+              ry={p.ry}
+              transform={`rotate(${p.rot} ${p.cx} ${p.cy})`}
+              fill={p.color}
+            />
+          </motion.g>
+        );
+      })}
+
+      {/* Yellow core (static) */}
+      <circle cx={32} cy={32} r={CENTER_R} fill="#FFD24D" />
+
+      {/* Static transparent hit zones — stay put so the lift can't drag hover off. */}
       {petals.map((p, i) => (
-        <motion.g
-          key={i}
-          variants={{
-            rest: { x: 0, y: 0 },
-            hover: { x: p.dx * LIFT, y: p.dy * LIFT },
-          }}
-          transition={{
-            type: "spring",
-            stiffness: 320,
-            damping: 16,
-            mass: 0.5,
-            delay: i * 0.025,
-          }}
-        >
-          <ellipse
-            cx={p.cx}
-            cy={p.cy}
-            rx={p.rx}
-            ry={p.ry}
-            transform={`rotate(${p.rot} ${p.cx} ${p.cy})`}
-            fill={p.color}
-          />
-        </motion.g>
+        <ellipse
+          key={`hit-${i}`}
+          cx={p.cx}
+          cy={p.cy}
+          rx={p.rx}
+          ry={p.ry}
+          transform={`rotate(${p.rot} ${p.cx} ${p.cy})`}
+          fill="transparent"
+          pointerEvents="all"
+          style={{ cursor: "pointer" }}
+          onMouseEnter={() => setHovered(i)}
+          onMouseLeave={() => setHovered((h) => (h === i ? null : h))}
+        />
       ))}
-      <motion.circle
-        cx={32}
-        cy={32}
-        r={CENTER_R}
-        fill="#FFD24D"
-        variants={{
-          rest: { scale: 1 },
-          hover: { scale: 1.08 },
-        }}
-        style={{ transformOrigin: "32px 32px" }}
-        transition={{ type: "spring", stiffness: 320, damping: 18 }}
-      />
-    </motion.svg>
+    </svg>
   );
 }
