@@ -353,8 +353,7 @@ export const TasteCard = memo(function TasteCard({
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded p-1 opacity-60 transition-opacity duration-150 hover:opacity-100"
-                    style={{ color: "var(--color-text-primary)" }}
+                    className="rounded p-1 text-white opacity-60 transition-opacity duration-150 hover:opacity-100"
                     title="Visit site"
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -374,8 +373,7 @@ export const TasteCard = memo(function TasteCard({
                     e.stopPropagation();
                     onDelete(item.id);
                   }}
-                  className="rounded p-1 opacity-60 transition-opacity duration-150 hover:opacity-100"
-                  style={{ color: "var(--color-text-primary)" }}
+                  className="rounded p-1 text-white opacity-60 transition-opacity duration-150 hover:opacity-100"
                   title="Remove"
                 >
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
