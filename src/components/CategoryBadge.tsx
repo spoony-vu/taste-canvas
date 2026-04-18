@@ -68,7 +68,7 @@ export function CategoryBadge({ category, onUpdate }: CategoryBadgeProps) {
         ref={triggerRef}
         role={interactive ? "button" : undefined}
         onClick={interactive ? (e) => { e.stopPropagation(); setOpen((o) => !o); } : undefined}
-        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium ${interactive ? "cursor-pointer transition-[box-shadow] duration-100" : ""}`}
+        className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium ${interactive ? "cursor-pointer transition-[box-shadow] duration-100" : ""}`}
         style={{
           background: `color-mix(in oklch, ${cat.dot}, transparent 85%)`,
           color: cat.color,
