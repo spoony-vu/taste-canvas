@@ -140,11 +140,11 @@ export function CategorySelect({ value, onChange, size = "default" }: CategorySe
                           ? "var(--color-text-primary)"
                           : "var(--color-text-secondary)",
                         background: active
-                          ? "oklch(1 0 0 / 0.06)"
+                          ? "var(--color-hover-strong)"
                           : "transparent",
                       }}
                       onMouseEnter={(e) => {
-                        if (!active) e.currentTarget.style.background = "oklch(1 0 0 / 0.04)";
+                        if (!active) e.currentTarget.style.background = "var(--color-hover)";
                       }}
                       onMouseLeave={(e) => {
                         if (!active) e.currentTarget.style.background = "transparent";

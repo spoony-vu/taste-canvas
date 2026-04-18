@@ -80,9 +80,9 @@ export function ViewToolbar({
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
       className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full px-1.5 py-1.5"
       style={{
-        background: "oklch(0.15 0.01 260 / 0.85)",
+        background: "var(--color-floating-bg)",
         backdropFilter: "blur(16px)",
-        boxShadow: "0 8px 32px oklch(0 0 0 / 0.4), 0 0 0 0.5px oklch(0.3 0.01 260 / 0.5)",
+        boxShadow: "0 8px 32px oklch(0 0 0 / 0.25), 0 0 0 0.5px var(--color-floating-ring)",
       }}
     >
       {layouts.map(({ mode, label, icon }) => (

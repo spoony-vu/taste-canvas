@@ -9,6 +9,22 @@
     <link rel="preload" href="https://fonts.gstatic.com/s/instrumentserif/v4/jizBRFtNs2ka5fCjOQ3GCOlGJlCE.woff2" as="font" type="font/woff2" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
     <title>taste-canvas</title>
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("taste-theme");
+          var theme =
+            stored === "light" || stored === "dark"
+              ? stored
+              : window.matchMedia("(prefers-color-scheme: light)").matches
+                ? "light"
+                : "dark";
+          if (theme === "light") {
+            document.documentElement.setAttribute("data-theme", "light");
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

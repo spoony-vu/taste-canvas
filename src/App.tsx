@@ -6,6 +6,7 @@ import { CardGrid } from "./components/CardGrid";
 import { AddButton } from "./components/AddButton";
 import { DropZone } from "./components/DropZone";
 import { ViewToolbar } from "./components/ViewToolbar";
+import { ThemeToggle } from "./components/ThemeToggle";
 
 const AddModal = lazy(() => import("./components/AddModal").then(m => ({ default: m.AddModal })));
 const ImageUploadModal = lazy(() => import("./components/ImageUploadModal").then(m => ({ default: m.ImageUploadModal })));
@@ -13,6 +14,7 @@ import { Lightbox } from "./components/Lightbox";
 import { UndoToast } from "./components/UndoToast";
 import { useManifest } from "./hooks/useManifest";
 import { useDragToScroll } from "./hooks/useDragToScroll";
+import { useIncrementalItems } from "./hooks/useIncrementalItems";
 import type { Category, LayoutMode, TasteItem } from "./lib/types";
 
 function acceptedFiles(files: FileList | null): File[] {
@@ -111,6 +113,8 @@ export default function App() {
     return items;
   }, [manifest.items, activeFilters, search]);
 
+  const { items: visibleItems, hasMore, sentinelRef } = useIncrementalItems(filtered);
+
   const openFileInput = useCallback(() => fileInputRef.current?.click(), []);
 
   return (
@@ -123,8 +127,9 @@ export default function App() {
         >
           Taste Canvas
         </h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           <SearchInput value={search} onChange={setSearch} />
+          <ThemeToggle />
           <div className="hidden sm:block">
             <AddButton
               onAddUrl={() => setUrlModalOpen(true)}
@@ -146,7 +151,7 @@ export default function App() {
 
       <LayoutGroup>
         <CardGrid
-          items={filtered}
+          items={visibleItems}
           loading={loading}
           totalCount={manifest.items.length}
           layoutMode={layoutMode}
@@ -155,6 +160,8 @@ export default function App() {
           onClearFilters={clearFilters}
           onUpdateCategory={(id, category) => updateItem(id, { category })}
         />
+
+        {hasMore && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
 
         {lightboxItem && (
           <Lightbox

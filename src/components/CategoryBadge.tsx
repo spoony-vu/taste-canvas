@@ -129,9 +129,9 @@ export function CategoryBadge({ category, onUpdate }: CategoryBadgeProps) {
                       className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors duration-75"
                       style={{
                         color: active ? "var(--color-text-primary)" : "var(--color-text-secondary)",
-                        background: active ? "oklch(1 0 0 / 0.06)" : "transparent",
+                        background: active ? "var(--color-hover-strong)" : "transparent",
                       }}
-                      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "oklch(1 0 0 / 0.04)"; }}
+                      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--color-hover)"; }}
                       onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
                     >
                       <span

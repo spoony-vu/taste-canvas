@@ -274,7 +274,7 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
                     onClick={(e) => { e.stopPropagation(); addCategoryTag(c.id); }}
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] transition-colors duration-75"
                     style={{ color: "var(--color-text-secondary)", background: "transparent" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "oklch(1 0 0 / 0.04)"; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-hover)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                   >
                     <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ background: c.dot }} />
@@ -287,7 +287,7 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
                     onClick={(e) => { e.stopPropagation(); addTag(); setShowSuggestions(false); }}
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] transition-colors duration-75"
                     style={{ color: "var(--color-text-tertiary)", background: "transparent" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "oklch(1 0 0 / 0.04)"; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-hover)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                   >
                     Add "{tagInput.trim()}"
