@@ -22,17 +22,14 @@ export function ThemeToggle() {
             key="moon"
             width="16"
             height="16"
-            viewBox="0 0 16 16"
-            fill="none"
+            viewBox="0 0 24 24"
+            fill="currentColor"
             initial={{ opacity: 0, rotate: -45, scale: 0.8 }}
             animate={{ opacity: 1, rotate: 0, scale: 1 }}
             exit={{ opacity: 0, rotate: 45, scale: 0.8 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
           >
-            <path
-              d="M13.5 9.5A5 5 0 1 1 6.5 2.5a4 4 0 0 0 7 7z"
-              fill="currentColor"
-            />
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
           </motion.svg>
         ) : (
           <motion.svg
