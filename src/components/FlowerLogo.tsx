@@ -15,16 +15,16 @@ const CENTER_R = 6;
 const LIFT = 5;
 
 // Flight physics, in viewBox units (64×64). Tuned subtle for the 44px nav logo.
-const V0 = 34;            // initial radial speed
-const V0_JITTER = 6;
+const V0 = 52;            // initial radial speed
+const V0_JITTER = 8;
 const GRAVITY = 50;       // pulls petal down during flight
-const DRAG = 1.1;         // air resistance (v *= exp(-DRAG*dt))
-const WIND_AMP = 6;
+const DRAG = 1.0;         // air resistance (v *= exp(-DRAG*dt))
+const WIND_AMP = 8;
 const WIND_FREQ = 2.0;
-const SPIN_MIN = 90;      // deg/sec
-const SPIN_MAX = 240;
-const UPWARD_BIAS = 10;   // initial negative vy for nicer arc
-const FLIGHT_TIME = 0.42; // sec of ballistic flight before spring return
+const SPIN_MIN = 100;     // deg/sec
+const SPIN_MAX = 260;
+const UPWARD_BIAS = 12;   // initial negative vy for nicer arc
+const FLIGHT_TIME = 0.5;  // sec of ballistic flight before spring return
 
 const HOVER_SPRING = { type: "spring", stiffness: 380, damping: 18, mass: 0.5 } as const;
 const RETURN_SPRING = { type: "spring", stiffness: 260, damping: 22, mass: 1 } as const;
