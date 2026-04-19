@@ -373,7 +373,7 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
                         onUpdate={onUpdateCategory ? (c) => onUpdateCategory(item.id, c) : undefined}
                       />
                       <span
-                        className="text-[16px]"
+                        className="text-[14px]"
                         style={{ color: "oklch(0.95 0.01 260)", fontFamily: "var(--font-display)" }}
                       >
                         {item.title}
@@ -461,7 +461,7 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
                       {cat.label}
                     </span>
                     <span
-                      className="text-[16px]"
+                      className="text-[14px]"
                       style={{ color: "oklch(0.95 0.01 260)", fontFamily: "var(--font-display)" }}
                     >
                       {item.title}
