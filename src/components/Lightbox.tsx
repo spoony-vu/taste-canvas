@@ -447,19 +447,10 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
                   transition={reduced ? { duration: 0 } : contentReveal.transition}
                 >
                   <div className="flex items-center gap-3">
-                    <span
-                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium"
-                      style={{
-                        background: `color-mix(in oklch, ${cat.dot}, transparent 85%)`,
-                        color: cat.color,
-                      }}
-                    >
-                      <span
-                        className="inline-block h-1.5 w-1.5 rounded-full"
-                        style={{ background: cat.dot }}
-                      />
-                      {cat.label}
-                    </span>
+                    <CategoryBadge
+                      category={item.category}
+                      onUpdate={onUpdateCategory ? (c) => onUpdateCategory(item.id, c) : undefined}
+                    />
                     <span
                       className="text-[13px]"
                       style={{ color: "oklch(0.95 0.01 260)", fontFamily: "var(--font-display)" }}
