@@ -70,6 +70,7 @@ export default function App() {
 
   const clearFilters = useCallback(() => {
     setActiveFilters(new Set());
+    setSearch("");
   }, []);
 
   const handleDelete = useCallback((id: string) => {
