@@ -207,7 +207,8 @@ app.post("/api/upload", upload.single("image"), async (req, res) => {
     .replace(/(^-|-$)/g, "");
   const date = new Date().toISOString().split("T")[0];
   const ext = file.originalname.split(".").pop() ?? "png";
-  const filename = `${slug}-${date}.${ext}`;
+  const id = crypto.randomUUID().slice(0, 8);
+  const filename = `${slug}-${date}-${id}.${ext}`;
 
   const { image: imagePath, thumb: thumbPath, lqip } = await storage.uploadImage(
     category,
@@ -217,7 +218,6 @@ app.post("/api/upload", upload.single("image"), async (req, res) => {
   );
 
   const manifest = await storage.readManifest();
-  const id = crypto.randomUUID().slice(0, 8);
   const item = {
     id,
     title,

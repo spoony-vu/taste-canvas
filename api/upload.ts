@@ -97,7 +97,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
   const date = new Date().toISOString().split("T")[0];
-  const filename = `${slug}-${date}.${ext}`;
+  const id = crypto.randomUUID().slice(0, 8);
+  const filename = `${slug}-${date}-${id}.${ext}`;
   const blobPath = `taste/${category}/${filename}`;
 
   const { url: blobUrl } = await put(blobPath, fileBuffer, {
@@ -130,7 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .toBuffer(),
     ]);
     lqip = `data:image/webp;base64,${lqipTiny.toString("base64")}`;
-    const thumbPath = `taste/${category}/${slug}-${date}.thumb.webp`;
+    const thumbPath = `taste/${category}/${slug}-${date}-${id}.thumb.webp`;
     ({ url: thumbUrl } = await put(thumbPath, thumbBuf, {
       access: "public",
       contentType: "image/webp",
@@ -140,7 +141,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const manifest = await readManifest();
-  const id = crypto.randomUUID().slice(0, 8);
   const item: TasteItem = {
     id,
     title,
