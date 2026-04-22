@@ -43,6 +43,7 @@ export default function App() {
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [lightboxId, setLightboxId] = useState<string | null>(null);
   const lightboxItem = useMemo(
     () => (lightboxId ? manifest.items.find((i) => i.id === lightboxId) ?? null : null),
@@ -118,6 +119,7 @@ export default function App() {
   const { items: visibleItems, hasMore, sentinelRef } = useIncrementalItems(filtered);
 
   const openFileInput = useCallback(() => fileInputRef.current?.click(), []);
+  const openCameraInput = useCallback(() => cameraInputRef.current?.click(), []);
 
   return (
     <DropZone onAdd={addItem}>
@@ -200,6 +202,22 @@ export default function App() {
         }}
       />
 
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const files = acceptedFiles(e.target.files);
+          e.target.value = "";
+          if (files.length > 0) {
+            setPendingFiles(files);
+            setImageModalOpen(true);
+          }
+        }}
+      />
+
       <Suspense>
         {urlModalOpen && (
           <AddModal
@@ -235,6 +253,7 @@ export default function App() {
         onLayoutChange={handleLayoutChange}
         onAddUrl={() => setUrlModalOpen(true)}
         onAddImage={openFileInput}
+        onTakePhoto={openCameraInput}
       />
     </div>
     </DropZone>

@@ -7,6 +7,7 @@ interface ViewToolbarProps {
   onLayoutChange: (mode: LayoutMode) => void;
   onAddUrl?: () => void;
   onAddImage?: () => void;
+  onTakePhoto?: () => void;
 }
 
 const layouts: { mode: LayoutMode; label: string; icon: React.ReactNode }[] = [
@@ -51,6 +52,7 @@ export function ViewToolbar({
   onLayoutChange,
   onAddUrl,
   onAddImage,
+  onTakePhoto,
 }: ViewToolbarProps) {
   const [addOpen, setAddOpen] = useState(false);
   const addRef = useRef<HTMLDivElement>(null);
@@ -111,7 +113,7 @@ export function ViewToolbar({
       ))}
 
       {/* Mobile add button */}
-      {(onAddUrl || onAddImage) && (
+      {(onAddUrl || onAddImage || onTakePhoto) && (
         <>
           <div
             className="mx-0.5 h-4 w-px sm:hidden"
@@ -158,6 +160,24 @@ export function ViewToolbar({
                       "0 8px 24px oklch(0 0 0 / 0.35), 0 0 0 0.5px var(--color-border)",
                   }}
                 >
+                  {onTakePhoto && (
+                    <button
+                      onClick={() => { onTakePhoto(); closeAdd(); }}
+                      className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] font-medium"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ color: "var(--color-text-tertiary)" }}>
+                        <path
+                          d="M4.5 3l.9-1.2A1 1 0 016.2 1.4h3.6a1 1 0 01.8.4L11.5 3H14a1 1 0 011 1v8.5a1 1 0 01-1 1H2a1 1 0 01-1-1V4a1 1 0 011-1h2.5z"
+                          stroke="currentColor"
+                          strokeWidth="1.3"
+                          strokeLinejoin="round"
+                        />
+                        <circle cx="8" cy="8.5" r="2.5" stroke="currentColor" strokeWidth="1.3" />
+                      </svg>
+                      Camera
+                    </button>
+                  )}
                   {onAddUrl && (
                     <button
                       onClick={() => { onAddUrl(); closeAdd(); }}
