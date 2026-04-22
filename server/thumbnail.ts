@@ -6,6 +6,7 @@ const LQIP_WIDTH = 20;
 
 export async function generateThumbnail(buffer: Buffer): Promise<Buffer> {
   return sharp(buffer)
+    .rotate()
     .resize(THUMB_WIDTH, undefined, { withoutEnlargement: true })
     .webp({ quality: THUMB_QUALITY })
     .toBuffer();
@@ -14,6 +15,7 @@ export async function generateThumbnail(buffer: Buffer): Promise<Buffer> {
 /** Generate a tiny base64-encoded WebP for instant placeholder */
 export async function generateLqip(buffer: Buffer): Promise<string> {
   const tiny = await sharp(buffer)
+    .rotate()
     .resize(LQIP_WIDTH, undefined, { withoutEnlargement: true })
     .webp({ quality: 20 })
     .toBuffer();

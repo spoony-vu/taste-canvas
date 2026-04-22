@@ -119,10 +119,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Generate thumbnail + LQIP for images
     const [thumbBuf, lqipTiny] = await Promise.all([
       sharp(fileBuffer)
+        .rotate()
         .resize(400, undefined, { withoutEnlargement: true })
         .webp({ quality: 65 })
         .toBuffer(),
       sharp(fileBuffer)
+        .rotate()
         .resize(20, undefined, { withoutEnlargement: true })
         .webp({ quality: 20 })
         .toBuffer(),
