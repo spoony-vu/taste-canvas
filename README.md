@@ -119,11 +119,33 @@ The extension is unpublished on the Chrome Web Store — install from source:
    - Click **Load unpacked** and select the cloned directory
 3. **Connect to your backend** — click the extension icon in the toolbar, then in the Settings panel:
    - **Backend URL** — your deployed origin (e.g. `https://your-taste-canvas.vercel.app`)
-   - **API key** — the value of `TASTE_API_KEY` from your Vercel env vars
+   - **API key** — your `TASTE_API_KEY` (see below for how to find or generate it)
    - Click **Save** — Chrome will prompt to grant access to your backend's host. Approve.
 4. **Done.** Right-click any image/video/link → "Save to Taste Canvas". Or hover an image → click the floating "+". Or hit `Alt+Shift+S` to save the current page.
 
 The extension verifies the URL + key by hitting `/api/manifest` before saving anything. If you change `TASTE_API_KEY`, update it in Settings.
+
+### Where do I get the `TASTE_API_KEY`?
+
+This is the same value you set as a Vercel environment variable when deploying. Three scenarios:
+
+**You set it during the Deploy-to-Vercel flow** (most common):
+1. Go to [vercel.com/dashboard](https://vercel.com/dashboard) → your `taste-canvas` project
+2. **Settings → Environment Variables**
+3. Find `TASTE_API_KEY` → click the eye icon to reveal → copy the value
+4. Paste into the extension's Settings → **Save**
+
+**You forgot to set it** (write endpoints will be open until you do — fix this):
+1. Generate one: `openssl rand -hex 32` (any random ~32+ character string works)
+2. In Vercel → Settings → Environment Variables → **Add New** → name `TASTE_API_KEY`, paste value, select all environments → **Save**
+3. **Redeploy** so the new variable takes effect (Deployments tab → latest → ⋯ → Redeploy)
+4. Paste the same value into the extension
+
+**You want to rotate it** (compromised, lost, just paranoid):
+1. Generate a new value with `openssl rand -hex 32`
+2. Update `TASTE_API_KEY` in Vercel → redeploy
+3. Update the extension's Settings panel with the new value
+4. Old key stops working immediately on the next deploy
 
 ## Mobile / PWA
 
