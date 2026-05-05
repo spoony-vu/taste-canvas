@@ -89,9 +89,12 @@ Source + install instructions: **[taste-canvas-extension](https://github.com/YOU
 
 ## Mobile / PWA
 
-Add Taste Canvas to your iOS or Android home screen and use the device camera to capture references IRL.
+Taste Canvas installs as a Progressive Web App on iOS and Android, with full-screen standalone display and a custom home-screen icon.
 
-> PWA support is added in **Phase 8** of the OSS prep.
+**iOS:** open the deployed URL in Safari → Share → **Add to Home Screen**.
+**Android:** open in Chrome → menu → **Install app** (or **Add to Home screen**).
+
+Once installed, the camera button in the add menu opens the device camera directly so you can capture references IRL — physical typography, packaging, signage, anything. Captured photos go straight into your Vercel Blob, just like uploads.
 
 ## Privacy
 
