@@ -6,7 +6,7 @@ A self-hosted visual reference board for design inspiration — typefaces, landi
 
 ## Why
 
-Pinboard apps and bookmark managers are centralized. Your visual references end up locked in someone else's database — sold, mined, or eventually shut down. Taste Canvas is the inverse: deploy your own copy in 60 seconds, and every image you save lives in **your** Vercel Blob store, behind **your** auth key, in **your** account. Forks don't share data.
+Pinboard apps and bookmark managers are centralized. Your visual references end up locked in someone else's database — sold, mined, or eventually shut down. Taste Canvas is the inverse: deploy your own copy and every image you save lives in **your** Vercel Blob store, behind **your** auth key, in **your** account. Forks don't share data.
 
 ## Features
 
@@ -21,13 +21,31 @@ Pinboard apps and bookmark managers are centralized. Your visual references end 
 
 ## Stack
 
-React 19 · Vite 8 · TypeScript · Tailwind v4 · Framer Motion · Vercel Blob · Sharp
+React 19 · Vite 8 · TypeScript · Tailwind v4 · Framer Motion · Vercel Blob · Sharp · puppeteer-core + @sparticuz/chromium
 
-## Quick start (deploy your own)
+## Quick start: deploy to Vercel
 
-The fastest path is one-click deploy to Vercel. This creates a private project in your account with its own Blob store automatically provisioned.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FYOUR_USERNAME%2Ftaste-canvas&project-name=taste-canvas&repository-name=taste-canvas&stores=%5B%7B%22type%22%3A%22blob%22%7D%5D&env=TASTE_API_KEY%2CVITE_PUBLIC_URL&envDescription=TASTE_API_KEY%20is%20any%20random%20string%20%28openssl%20rand%20-hex%2032%29.%20VITE_PUBLIC_URL%20is%20your%20deployed%20origin%20%28e.g.%20https%3A%2F%2Fyour-taste-canvas.vercel.app%29.&envLink=https%3A%2F%2Fgithub.com%2FYOUR_USERNAME%2Ftaste-canvas%23environment-variables)
 
-> Deploy button instructions are added in Phase 4 of the OSS prep — once published as a public template repo, this README will include the official Deploy-to-Vercel button.
+The button above will:
+
+1. Clone this repo into your GitHub account
+2. Create a new Vercel project linked to it
+3. **Auto-provision a Vercel Blob store** (this is where your images and manifest will live — only you can read/write it)
+4. Prompt you for `TASTE_API_KEY` and `VITE_PUBLIC_URL`
+5. Deploy
+
+After deploy, visit your site URL and start saving images. There is no signup, no shared backend, and no telemetry.
+
+## Environment variables
+
+| Name | Required | What |
+|------|----------|------|
+| `BLOB_READ_WRITE_TOKEN` | yes | Auto-set by the Vercel Blob integration. Don't set manually. |
+| `TASTE_API_KEY` | yes (in prod) | Bearer token used by the browser extension and any external script. Generate with `openssl rand -hex 32`. The frontend uses same-origin auth, so it doesn't need to know this value. |
+| `VITE_PUBLIC_URL` | recommended | Your deployed origin (`https://your-app.vercel.app`). Used for `og:url` and `og:image` tags. |
+
+Copy `.env.example` to `.env.local` for local dev, and set the same variables in **Vercel → your project → Settings → Environment Variables** for production.
 
 ## Local development
 
@@ -35,11 +53,18 @@ The fastest path is one-click deploy to Vercel. This creates a private project i
 git clone https://github.com/YOUR_USERNAME/taste-canvas.git
 cd taste-canvas
 npm install
-cp .env.example .env.local   # fill in BLOB_READ_WRITE_TOKEN and TASTE_API_KEY
+
+# Connect to your Vercel project to pull the Blob token automatically:
+npx vercel link
+npx vercel env pull .env.local
+
+# Or copy .env.example and fill in by hand
+# cp .env.example .env.local
+
 npm run dev
 ```
 
-This starts Vite on `http://localhost:5173` and an Express dev server on `:3002`. Vite proxies `/api` to the Express server.
+This starts Vite on `http://localhost:5173` and a thin API adapter on `:3002`. Vite proxies `/api` to the adapter, which mounts the same `api/*.ts` handlers Vercel deploys in production — single source of truth, no drift.
 
 ## Verify
 
@@ -48,9 +73,29 @@ npm run lint
 npm run build
 ```
 
+## Architecture
+
+- **`api/*.ts`** — Vercel serverless functions. The only backend code in the project.
+- **`server/dev.ts`** — Local Express adapter that mounts `api/*.ts` handlers. Zero logic of its own.
+- **`api/_storage.ts`** — Shared Blob helpers (`readManifest`, `writeManifest`, `uploadImageWithThumb`, etc.) used by every handler.
+- **`api/_auth.ts`** — Bearer-token + same-origin auth. Both paths are required: same-origin for the browser frontend, Bearer for the extension and any scripts.
+- **`src/`** — React frontend. State lives in `useManifest` hook (single source of truth on the client).
+
+## Browser extension
+
+A companion Chrome extension lets you save any image, video, link, or page screenshot to your taste canvas with one click or a keyboard shortcut.
+
+> Extension OSS-ready setup is added in **Phase 7** of the OSS prep. Once shipped, it will read the backend URL + API key from its own settings UI so each fork can use their own deployment.
+
+## Mobile / PWA
+
+Add Taste Canvas to your iOS or Android home screen and use the device camera to capture references IRL.
+
+> PWA support is added in **Phase 8** of the OSS prep.
+
 ## Privacy
 
-Each fork is fully isolated. Images go to **your** Vercel Blob store. Manifest reads/writes happen in **your** Vercel project. There is no central server, no telemetry, and no analytics. See [PRIVACY.md](./PRIVACY.md) (added in Phase 9).
+Each fork is fully isolated. Images go to **your** Vercel Blob store. Manifest reads/writes happen in **your** Vercel project. There is no central server, no telemetry, and no analytics. See [PRIVACY.md](./PRIVACY.md) for details.
 
 ## License
 
