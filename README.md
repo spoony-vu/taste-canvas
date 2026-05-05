@@ -8,6 +8,24 @@ A self-hosted visual reference board for design inspiration — typefaces, landi
 
 Pinboard apps and bookmark managers are centralized. Your visual references end up locked in someone else's database — sold, mined, or eventually shut down. Taste Canvas is the inverse: deploy your own copy and every image you save lives in **your** Vercel Blob store, behind **your** auth key, in **your** account. Forks don't share data.
 
+## Screenshots
+
+The board with masonry layout, category filters, and search:
+
+![Taste Canvas — board view](docs/screenshots/app-home.png)
+
+Lightbox with full-resolution preview:
+
+![Taste Canvas — lightbox](docs/screenshots/app-lightbox.png)
+
+Mobile / PWA — installable to the home screen, with camera capture for IRL references:
+
+<img src="docs/screenshots/app-mobile.png" alt="Taste Canvas — mobile view" width="320" />
+
+Companion Chrome extension popup — point it at your own deployment via the Settings panel, then save links/images/videos with one click or `Alt+Shift+S`:
+
+<img src="docs/screenshots/extension-popup.png" alt="Taste Canvas — Chrome extension" width="380" />
+
 ## Features
 
 - Save images by upload, URL screenshot, or tweet URL
