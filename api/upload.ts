@@ -1,27 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { put, list } from "@vercel/blob";
-import sharp from "sharp";
+import { put } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
-import type { Manifest, TasteItem } from "../src/lib/types.js";
-
-const MANIFEST_KEY = "taste/manifest.json";
-
-async function readManifest(): Promise<Manifest> {
-  const blobs = await list({ prefix: MANIFEST_KEY });
-  const match = blobs.blobs.find((b) => b.pathname === MANIFEST_KEY);
-  if (!match) return { items: [] };
-  const res = await fetch(match.url);
-  return (await res.json()) as Manifest;
-}
-
-async function writeManifest(data: Manifest): Promise<void> {
-  await put(MANIFEST_KEY, JSON.stringify(data, null, 2), {
-    access: "public",
-    contentType: "application/json",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
-}
+import { readManifest, writeManifest, uploadImageWithThumb, slugify } from "./_storage.js";
+import type { TasteItem } from "../src/lib/types.js";
 
 export const config = {
   api: { bodyParser: false },
@@ -38,106 +19,74 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const contentType = req.headers["content-type"] ?? "";
-
-  let fileBuffer: Buffer;
-  let title: string;
-  let category: string;
-  let url = "";
-  let tags: string[] = [];
-  let ext = "png";
-  let fileContentType = "image/png";
-  let isVideo = false;
-
-  if (contentType.includes("multipart/form-data")) {
-    // Parse multipart manually using Web API
-    const chunks: Uint8Array[] = [];
-    for await (const chunk of req) {
-      chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
-    }
-    const body = Buffer.concat(chunks);
-
-    // Extract boundary
-    const boundaryMatch = contentType.match(/boundary=(.+)/);
-    if (!boundaryMatch) {
-      return res.status(400).json({ error: "Missing boundary" });
-    }
-    const boundary = boundaryMatch[1];
-    const parts = parseMultipart(body, boundary);
-
-    const imagePart = parts.find((p) => p.name === "image");
-    const titlePart = parts.find((p) => p.name === "title");
-    const categoryPart = parts.find((p) => p.name === "category");
-    const urlPart = parts.find((p) => p.name === "url");
-    const tagsPart = parts.find((p) => p.name === "tags");
-
-    const filePart = imagePart ?? parts.find((p) => p.name === "video");
-    if (!filePart || !titlePart || !categoryPart) {
-      return res.status(400).json({ error: "Missing file, title, or category" });
-    }
-
-    fileBuffer = filePart.data;
-    title = titlePart.data.toString("utf-8");
-    category = categoryPart.data.toString("utf-8");
-    url = urlPart ? urlPart.data.toString("utf-8") : "";
-    tags = tagsPart ? JSON.parse(tagsPart.data.toString("utf-8")) : [];
-
-    if (filePart.filename) {
-      ext = filePart.filename.split(".").pop() ?? "png";
-    }
-    if (filePart.contentType) {
-      fileContentType = filePart.contentType;
-      isVideo = filePart.contentType.startsWith("video/");
-    }
-  } else {
+  if (!contentType.includes("multipart/form-data")) {
     return res.status(400).json({ error: "Expected multipart/form-data" });
   }
 
-  const slug = title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+  // Parse multipart manually
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of req) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  const body = Buffer.concat(chunks);
+
+  const boundaryMatch = contentType.match(/boundary=(.+)/);
+  if (!boundaryMatch) {
+    return res.status(400).json({ error: "Missing boundary" });
+  }
+  const parts = parseMultipart(body, boundaryMatch[1]);
+
+  const imagePart = parts.find((p) => p.name === "image");
+  const titlePart = parts.find((p) => p.name === "title");
+  const categoryPart = parts.find((p) => p.name === "category");
+  const urlPart = parts.find((p) => p.name === "url");
+  const tagsPart = parts.find((p) => p.name === "tags");
+
+  const filePart = imagePart ?? parts.find((p) => p.name === "video");
+  if (!filePart || !titlePart || !categoryPart) {
+    return res.status(400).json({ error: "Missing file, title, or category" });
+  }
+
+  const fileBuffer = filePart.data;
+  const title = titlePart.data.toString("utf-8");
+  const category = categoryPart.data.toString("utf-8");
+  const url = urlPart ? urlPart.data.toString("utf-8") : "";
+  const tags: string[] = tagsPart ? JSON.parse(tagsPart.data.toString("utf-8")) : [];
+
+  let ext = "png";
+  let fileContentType = "image/png";
+  let isVideo = false;
+  if (filePart.filename) ext = filePart.filename.split(".").pop() ?? "png";
+  if (filePart.contentType) {
+    fileContentType = filePart.contentType;
+    isVideo = filePart.contentType.startsWith("video/");
+  }
+
+  const slug = slugify(title);
   const date = new Date().toISOString().split("T")[0];
   const id = crypto.randomUUID().slice(0, 8);
   const filename = `${slug}-${date}-${id}.${ext}`;
   const blobPath = `taste/${category}/${filename}`;
 
-  const { url: blobUrl } = await put(blobPath, fileBuffer, {
-    access: "public",
-    contentType: fileContentType,
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
-
-  let thumbUrl = "";
-  let lqip = "";
+  let imageUrl: string;
+  let thumbUrl: string | undefined;
+  let lqip: string | undefined;
   let videoUrl: string | undefined;
 
   if (isVideo) {
-    // For video: store as-is, no thumbnail generation on server
-    // The client will use the video element's poster or first frame
-    videoUrl = blobUrl;
-  } else {
-    // Generate thumbnail + LQIP for images
-    const [thumbBuf, lqipTiny] = await Promise.all([
-      sharp(fileBuffer)
-        .rotate()
-        .resize(400, undefined, { withoutEnlargement: true })
-        .webp({ quality: 65 })
-        .toBuffer(),
-      sharp(fileBuffer)
-        .rotate()
-        .resize(20, undefined, { withoutEnlargement: true })
-        .webp({ quality: 20 })
-        .toBuffer(),
-    ]);
-    lqip = `data:image/webp;base64,${lqipTiny.toString("base64")}`;
-    const thumbPath = `taste/${category}/${slug}-${date}-${id}.thumb.webp`;
-    ({ url: thumbUrl } = await put(thumbPath, thumbBuf, {
+    const { url: blobUrl } = await put(blobPath, fileBuffer, {
       access: "public",
-      contentType: "image/webp",
+      contentType: fileContentType,
       addRandomSuffix: false,
       allowOverwrite: true,
-    }));
+    });
+    imageUrl = blobUrl;
+    videoUrl = blobUrl;
+  } else {
+    const result = await uploadImageWithThumb(blobPath, fileBuffer, fileContentType);
+    imageUrl = result.imageUrl;
+    thumbUrl = result.thumbUrl;
+    lqip = result.lqip;
   }
 
   const manifest = await readManifest();
@@ -145,7 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     id,
     title,
     url,
-    image: blobUrl,
+    image: imageUrl,
     ...(thumbUrl && { thumb: thumbUrl }),
     ...(lqip && { lqip }),
     ...(videoUrl && { video: videoUrl }),
@@ -159,7 +108,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   return res.status(201).json(item);
 }
 
-// Minimal multipart parser
 interface MultipartPart {
   name: string;
   filename?: string;
@@ -170,19 +118,21 @@ interface MultipartPart {
 function parseMultipart(body: Buffer, boundary: string): MultipartPart[] {
   const parts: MultipartPart[] = [];
   const sep = Buffer.from(`--${boundary}`);
-  const bodyStr = body;
 
-  let start = indexOf(bodyStr, sep, 0);
+  let start = indexOf(body, sep, 0);
   if (start === -1) return parts;
-  start += sep.length + 2; // skip \r\n
+  start += sep.length + 2;
 
   while (true) {
-    const end = indexOf(bodyStr, sep, start);
+    const end = indexOf(body, sep, start);
     if (end === -1) break;
 
-    const partBuf = bodyStr.subarray(start, end - 2); // -2 for \r\n before boundary
+    const partBuf = body.subarray(start, end - 2);
     const headerEnd = indexOf(partBuf, Buffer.from("\r\n\r\n"), 0);
-    if (headerEnd === -1) { start = end + sep.length + 2; continue; }
+    if (headerEnd === -1) {
+      start = end + sep.length + 2;
+      continue;
+    }
 
     const headerStr = partBuf.subarray(0, headerEnd).toString("utf-8");
     const data = partBuf.subarray(headerEnd + 4);
@@ -201,9 +151,8 @@ function parseMultipart(body: Buffer, boundary: string): MultipartPart[] {
     }
 
     start = end + sep.length;
-    // Check for -- (end marker)
-    if (bodyStr[start] === 0x2d && bodyStr[start + 1] === 0x2d) break;
-    start += 2; // skip \r\n
+    if (body[start] === 0x2d && body[start + 1] === 0x2d) break;
+    start += 2;
   }
 
   return parts;
@@ -213,7 +162,10 @@ function indexOf(buf: Buffer, search: Buffer, from: number): number {
   for (let i = from; i <= buf.length - search.length; i++) {
     let found = true;
     for (let j = 0; j < search.length; j++) {
-      if (buf[i + j] !== search[j]) { found = false; break; }
+      if (buf[i + j] !== search[j]) {
+        found = false;
+        break;
+      }
     }
     if (found) return i;
   }

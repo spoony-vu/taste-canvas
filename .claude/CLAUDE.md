@@ -7,20 +7,21 @@ Visual design reference board — save, categorize, and browse design inspiratio
 - React 19 + Vite 8 + TypeScript 6
 - Tailwind CSS v4 (via `@tailwindcss/vite`)
 - Framer Motion 12 (layout animations, lightbox)
-- Express 5 backend (local dev) / Vercel Serverless Functions (production)
-- Vercel Blob for image storage in production
+- Vercel Serverless Functions (single source of truth in `api/*.ts`)
+- Local dev: thin Express adapter (`server/dev.ts`) mounts the same `api/*.ts` handlers — no logic, just routing
+- Vercel Blob for image storage (both local and prod)
 - Sharp for thumbnails + LQIP generation
-- Playwright/Puppeteer for URL screenshots (local only)
+- puppeteer-core + @sparticuz/chromium for URL screenshots
 
 ## Dev Server
 
 ```bash
-npm run dev          # Starts Vite (port 5173) + Express server (port 3002) concurrently
+npm run dev          # Starts Vite (port 5173) + dev API adapter (port 3002) concurrently
 npm run dev:web      # Vite only
-npm run dev:server   # Express only
+npm run dev:api      # API adapter only
 ```
 
-Vite proxies `/api` requests to `http://localhost:3002`.
+Vite proxies `/api` requests to `http://localhost:3002`. The API adapter (`server/dev.ts`) just mounts `api/*.ts` handlers — no separate backend logic exists. Same code runs locally and on Vercel.
 
 ## Verify
 
@@ -59,17 +60,16 @@ src/
     DropZone.tsx             # Drag-and-drop wrapper
     UndoToast.tsx            # Delete undo notification
 server/
-  index.ts                   # Express app — all API routes
-  storage.ts                 # Filesystem (local) / Vercel Blob (prod) abstraction
-  screenshot.ts              # Playwright URL screenshot capture
-  thumbnail.ts               # Sharp thumbnail + LQIP generation
+  dev.ts                     # Local dev adapter — mounts api/*.ts handlers on Express
 api/
-  manifest.ts                # GET/PUT manifest (Vercel serverless)
-  upload.ts                  # POST upload (Vercel serverless)
-  delete.ts                  # DELETE item (Vercel serverless)
-  meta.ts                    # GET URL metadata (Vercel serverless)
-  screenshot.ts              # POST screenshot (Vercel serverless)
-  _auth.ts                   # Auth helper
+  manifest.ts                # GET/PUT manifest
+  upload.ts                  # POST file upload (multipart)
+  delete.ts                  # DELETE item by id
+  meta.ts                    # GET URL og:title metadata
+  screenshot.ts              # POST URL screenshot (puppeteer-core + chromium)
+  tweet.ts                   # POST tweet URL import (fxtwitter)
+  _auth.ts                   # Bearer token + same-origin auth
+  _storage.ts                # Shared Blob helpers (readManifest, uploadImageWithThumb, etc.)
 ```
 
 ## Key Types
@@ -96,19 +96,16 @@ interface Manifest { items: TasteItem[] }
 |--------|------|---------|
 | GET | `/api/manifest` | Read manifest |
 | PUT | `/api/manifest` | Write full manifest |
-| DELETE | `/api/manifest/:id` | Delete item + image |
-| POST | `/api/upload` | Upload image file (multipart) |
-| POST | `/api/screenshot` | Capture URL screenshot (local only) |
+| DELETE | `/api/delete?id=<id>` | Delete item + blob assets |
+| POST | `/api/upload` | Upload image/video (multipart) |
+| POST | `/api/screenshot` | Capture URL screenshot |
+| POST | `/api/tweet` | Import media from tweet URL |
 | GET | `/api/meta` | Fetch og:title from URL |
-| GET | `/api/images/:category/:filename` | Serve images (local only) |
-| GET | `/api/twitter-bookmarks` | List Twitter bookmarks with media |
-| POST | `/api/import/twitter` | Import Twitter media to vault |
 
 ## Gotchas
 
-- **Local vs Vercel storage**: `isBlob` flag in `server/storage.ts` switches between filesystem and Vercel Blob. Screenshots only work locally (Playwright not available on Vercel).
-- **Wiki auto-sync**: The server auto-updates `~/Library/Mobile Documents/com~apple~CloudDocs/obsidian-vault/spoony-vu/taste-board.md` on every manifest change (local only).
-- **Delete endpoint**: `DELETE /api/manifest/:id` (path param, not query param). Also deletes the image from storage.
+- **Single backend**: `api/*.ts` is the source of truth. Vercel deploys them directly; `server/dev.ts` mounts them on Express for local dev. No filesystem fallback — Blob is required (set `BLOB_READ_WRITE_TOKEN` in `.env.local`).
+- **Delete endpoint**: `DELETE /api/delete?id=<id>` (query param). Also deletes blob assets.
 - **File upload size**: Compress/resize client-side before upload. Vercel has 4MB limit. Always show upload errors — never let it hang silently.
 - **Twitter import**: `mediaObjects[].url` from `~/.ft-bookmarks/bookmarks.jsonl` for real images. Filter by size (>50KB) to skip avatars.
 - **Lightbox image preload effect deps**: The preload effect in `Lightbox.tsx` must depend on primitive values (`item.id`, `item.image`, `item.thumb`), NOT the `item` object. The `lightboxItem` useMemo in `App.tsx` returns a new object reference whenever `manifest.items` changes (background refetch, tag edits, etc.), which re-triggers object-dep effects and resets `fullLoaded` — causing the blur to persist. Always use `onerror` + a timeout safety net on `new Image()` preloads.

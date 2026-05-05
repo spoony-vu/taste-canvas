@@ -1,29 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
-import sharp from "sharp";
-import { put, list } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
-import type { Manifest, TasteItem } from "../src/lib/types.js";
-
-const MANIFEST_KEY = "taste/manifest.json";
-
-async function readManifest(): Promise<Manifest> {
-  const blobs = await list({ prefix: MANIFEST_KEY });
-  const match = blobs.blobs.find((b) => b.pathname === MANIFEST_KEY);
-  if (!match) return { items: [] };
-  const res = await fetch(match.url);
-  return (await res.json()) as Manifest;
-}
-
-async function writeManifest(data: Manifest): Promise<void> {
-  await put(MANIFEST_KEY, JSON.stringify(data, null, 2), {
-    access: "public",
-    contentType: "application/json",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
-}
+import { readManifest, writeManifest, uploadImageWithThumb } from "./_storage.js";
+import type { TasteItem } from "../src/lib/types.js";
 
 export const config = {
   maxDuration: 60,
@@ -56,7 +36,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
     await new Promise((r) => setTimeout(r, 2000));
 
-    // Extract page metadata before screenshot
     const meta = await page.evaluate(`({
       title:
         document.querySelector('meta[property="og:title"]')?.getAttribute("content") ??
@@ -71,7 +50,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const buffer = Buffer.from(screenshotBuffer);
 
-    // Upload full image
     const hostname = new URL(url).hostname.replace(/^www\./, "");
     const title = providedTitle || meta.title || hostname;
     const slug = hostname.replace(/\./g, "-");
@@ -79,34 +57,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const filename = `${slug}-${date}.png`;
     const blobPath = `taste/${category}/${filename}`;
 
-    const { url: imageUrl } = await put(blobPath, buffer, {
-      access: "public",
-      contentType: "image/png",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    });
+    const { imageUrl, thumbUrl, lqip } = await uploadImageWithThumb(blobPath, buffer, "image/png");
 
-    // Generate thumbnail + LQIP
-    const [thumbBuf, lqipTiny] = await Promise.all([
-      sharp(buffer)
-        .resize(400, undefined, { withoutEnlargement: true })
-        .webp({ quality: 65 })
-        .toBuffer(),
-      sharp(buffer)
-        .resize(20, undefined, { withoutEnlargement: true })
-        .webp({ quality: 20 })
-        .toBuffer(),
-    ]);
-    const lqip = `data:image/webp;base64,${lqipTiny.toString("base64")}`;
-    const thumbPath = `taste/${category}/${slug}-${date}.thumb.webp`;
-    const { url: thumbUrl } = await put(thumbPath, thumbBuf, {
-      access: "public",
-      contentType: "image/webp",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    });
-
-    // Update manifest
     const manifest = await readManifest();
     const id = crypto.randomUUID().slice(0, 8);
     const item: TasteItem = {

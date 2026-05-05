@@ -1,33 +1,15 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { put, list } from "@vercel/blob";
+import { put } from "@vercel/blob";
 import sharp from "sharp";
 import { isAuthorized } from "./_auth.js";
-import type { Manifest, TasteItem } from "../src/lib/types.js";
-
-const MANIFEST_KEY = "taste/manifest.json";
-
-/** Strip lone Unicode surrogates that break JSON serialization */
-function sanitizeText(s: string): string {
-  // eslint-disable-next-line no-control-regex
-  return s.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "\uFFFD");
-}
-
-async function readManifest(): Promise<Manifest> {
-  const blobs = await list({ prefix: MANIFEST_KEY });
-  const match = blobs.blobs.find((b) => b.pathname === MANIFEST_KEY);
-  if (!match) return { items: [] };
-  const res = await fetch(match.url);
-  return (await res.json()) as Manifest;
-}
-
-async function writeManifest(data: Manifest): Promise<void> {
-  await put(MANIFEST_KEY, JSON.stringify(data, null, 2), {
-    access: "public",
-    contentType: "application/json",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
-}
+import {
+  readManifest,
+  writeManifest,
+  uploadImageWithThumb,
+  sanitizeText,
+  slugify,
+} from "./_storage.js";
+import type { TasteItem } from "../src/lib/types.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -95,51 +77,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         buffer = Buffer.from(await imageRes.arrayBuffer());
       } else if (hasVideo) {
         // Thumbnail failed but video may still work — generate a placeholder poster
-        buffer = await sharp({ create: { width: 640, height: 360, channels: 3, background: { r: 24, g: 24, b: 32 } } }).jpeg({ quality: 60 }).toBuffer();
+        buffer = await sharp({
+          create: { width: 640, height: 360, channels: 3, background: { r: 24, g: 24, b: 32 } },
+        })
+          .jpeg({ quality: 60 })
+          .toBuffer();
       } else {
         continue;
       }
       const contentType = imageRes.headers.get("content-type") ?? "image/jpeg";
       const ext = contentType.includes("png") ? "png" : "jpg";
-      const title = tweet.text
-        .slice(0, 80)
-        .replace(/https?:\/\/\S+/g, "")
-        .trim() || `@${tweet.author.screen_name}`;
-      const slug = title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "")
-        .slice(0, 40);
+      const titleText =
+        tweet.text.slice(0, 80).replace(/https?:\/\/\S+/g, "").trim() ||
+        `@${tweet.author.screen_name}`;
+      const slug = slugify(titleText, 40);
       const date = new Date().toISOString().split("T")[0];
       const filename = `${slug}-${date}.${ext}`;
       const cat = category || "interactions";
       const blobPath = `taste/${cat}/${filename}`;
 
-      const { url: blobUrl } = await put(blobPath, buffer, {
-        access: "public",
-        contentType,
-        addRandomSuffix: false,
-        allowOverwrite: true,
-      });
-
-      const [thumbBuf, lqipTiny] = await Promise.all([
-        sharp(buffer)
-          .resize(400, undefined, { withoutEnlargement: true })
-          .webp({ quality: 65 })
-          .toBuffer(),
-        sharp(buffer)
-          .resize(20, undefined, { withoutEnlargement: true })
-          .webp({ quality: 20 })
-          .toBuffer(),
-      ]);
-      const lqip = `data:image/webp;base64,${lqipTiny.toString("base64")}`;
-      const thumbPath = `taste/${cat}/${slug}-${date}.thumb.webp`;
-      const { url: thumbUrl } = await put(thumbPath, thumbBuf, {
-        access: "public",
-        contentType: "image/webp",
-        addRandomSuffix: false,
-        allowOverwrite: true,
-      });
+      const { imageUrl: blobUrl, thumbUrl, lqip } = await uploadImageWithThumb(
+        blobPath,
+        buffer,
+        contentType
+      );
 
       let videoUrl: string | undefined;
       if (hasVideo) {
@@ -160,7 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const id = crypto.randomUUID().slice(0, 8);
       const item: TasteItem = {
         id,
-        title,
+        title: titleText,
         url: `https://x.com/${tweet.author.screen_name}/status/${statusId}`,
         image: blobUrl,
         thumb: thumbUrl,
