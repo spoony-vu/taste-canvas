@@ -103,7 +103,27 @@ npm run build
 
 A companion Chrome extension lets you save any image, video, link, or page screenshot to your taste canvas with one click, a hover button, or a keyboard shortcut. It reads your backend URL + API key from its own Settings panel — each fork uses its own deployment, with no shared server.
 
-Source + install instructions: **[taste-canvas-extension](https://github.com/spoony-vu/taste-canvas-extension)**.
+Repo: **[spoony-vu/taste-canvas-extension](https://github.com/spoony-vu/taste-canvas-extension)**.
+
+### Install (unpacked, ~1 minute)
+
+The extension is unpublished on the Chrome Web Store — install from source:
+
+1. **Clone it**
+   ```bash
+   git clone https://github.com/spoony-vu/taste-canvas-extension.git
+   ```
+2. **Load in Chrome** (or any Chromium browser — Edge, Brave, Arc):
+   - Open `chrome://extensions`
+   - Toggle **Developer mode** on (top-right)
+   - Click **Load unpacked** and select the cloned directory
+3. **Connect to your backend** — click the extension icon in the toolbar, then in the Settings panel:
+   - **Backend URL** — your deployed origin (e.g. `https://your-taste-canvas.vercel.app`)
+   - **API key** — the value of `TASTE_API_KEY` from your Vercel env vars
+   - Click **Save** — Chrome will prompt to grant access to your backend's host. Approve.
+4. **Done.** Right-click any image/video/link → "Save to Taste Canvas". Or hover an image → click the floating "+". Or hit `Alt+Shift+S` to save the current page.
+
+The extension verifies the URL + key by hitting `/api/manifest` before saving anything. If you change `TASTE_API_KEY`, update it in Settings.
 
 ## Mobile / PWA
 
