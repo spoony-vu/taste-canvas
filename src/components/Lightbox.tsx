@@ -49,12 +49,6 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
     }
   }, [isVideo, closing, onClose]);
 
-  // Ref keeps handleKey stable so the keydown effect doesn't re-run when closing changes.
-  // Without this, closing → handleCloseRequest change → handleKey change → keydown effect
-  // re-runs → setClosing(false) on line 85 resets closing before the 200ms timer fires.
-  const closeRef = useRef(handleCloseRequest);
-  closeRef.current = handleCloseRequest;
-
   useEffect(() => {
     if (!closing) return;
     const timer = setTimeout(() => {
@@ -99,6 +93,8 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
 
   useEffect(() => {
     if (!itemId || !itemImage) return;
+    // Effect syncs image-load state to an external system (the browser image cache).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsTall(false);
     setFullLoaded(false);
     const thumbSrc = thumbUrl(itemThumb, itemImage);

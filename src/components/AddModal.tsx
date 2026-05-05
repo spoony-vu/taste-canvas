@@ -103,7 +103,9 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
           try {
             const data = await res.json();
             if (data.error) msg = data.error;
-          } catch {}
+          } catch {
+            // response body wasn't JSON — keep generic msg
+          }
           throw new Error(msg);
         }
 
@@ -127,7 +129,9 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
           if (res.ok) {
             item = await res.json();
           }
-        } catch {}
+        } catch {
+          // screenshot route unavailable or threw — fall through to OG image
+        }
 
         // Screenshot failed — fall back to OG image
         if (!item) {

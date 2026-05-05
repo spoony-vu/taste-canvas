@@ -19,13 +19,9 @@ export function useManifest() {
   }, []);
 
   useEffect(() => {
-    if (cachedManifest) {
-      setManifest(cachedManifest);
-      setLoading(false);
-      fetchManifest();
-    } else {
-      fetchManifest();
-    }
+    // setState inside fetchManifest is the legitimate sync from network response on mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchManifest();
   }, [fetchManifest]);
 
   const addItem = useCallback((item: TasteItem) => {

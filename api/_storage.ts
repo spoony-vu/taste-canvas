@@ -31,7 +31,6 @@ export async function deleteBlob(url: string): Promise<void> {
 
 /** Strip lone Unicode surrogates that break JSON serialization. */
 export function sanitizeText(s: string): string {
-  // eslint-disable-next-line no-control-regex
   return s.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "\uFFFD");
 }
 

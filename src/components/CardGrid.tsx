@@ -58,6 +58,8 @@ function useColumnWidth(mode: LayoutMode) {
   }, [mode]);
 
   useEffect(() => {
+    // setState here is a legitimate sync from DOM measurement (read-only external system).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
