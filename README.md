@@ -83,9 +83,9 @@ npm run build
 
 ## Browser extension
 
-A companion Chrome extension lets you save any image, video, link, or page screenshot to your taste canvas with one click or a keyboard shortcut.
+A companion Chrome extension lets you save any image, video, link, or page screenshot to your taste canvas with one click, a hover button, or a keyboard shortcut. It reads your backend URL + API key from its own Settings panel — each fork uses its own deployment, with no shared server.
 
-> Extension OSS-ready setup is added in **Phase 7** of the OSS prep. Once shipped, it will read the backend URL + API key from its own settings UI so each fork can use their own deployment.
+Source + install instructions: **[taste-canvas-extension](https://github.com/YOUR_USERNAME/taste-canvas-extension)**.
 
 ## Mobile / PWA
 
