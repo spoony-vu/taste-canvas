@@ -25,7 +25,7 @@ React 19 · Vite 8 · TypeScript · Tailwind v4 · Framer Motion · Vercel Blob 
 
 ## Quick start: deploy to Vercel
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FYOUR_USERNAME%2Ftaste-canvas&project-name=taste-canvas&repository-name=taste-canvas&stores=%5B%7B%22type%22%3A%22blob%22%7D%5D&env=TASTE_API_KEY%2CVITE_PUBLIC_URL&envDescription=TASTE_API_KEY%20is%20any%20random%20string%20%28openssl%20rand%20-hex%2032%29.%20VITE_PUBLIC_URL%20is%20your%20deployed%20origin%20%28e.g.%20https%3A%2F%2Fyour-taste-canvas.vercel.app%29.&envLink=https%3A%2F%2Fgithub.com%2FYOUR_USERNAME%2Ftaste-canvas%23environment-variables)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fspoony-vu%2Ftaste-canvas&project-name=taste-canvas&repository-name=taste-canvas&stores=%5B%7B%22type%22%3A%22blob%22%7D%5D&env=TASTE_API_KEY%2CVITE_PUBLIC_URL&envDescription=TASTE_API_KEY%20is%20any%20random%20string%20%28openssl%20rand%20-hex%2032%29.%20VITE_PUBLIC_URL%20is%20your%20deployed%20origin%20%28e.g.%20https%3A%2F%2Fyour-taste-canvas.vercel.app%29.&envLink=https%3A%2F%2Fgithub.com%2Fspoony-vu%2Ftaste-canvas%23environment-variables)
 
 The button above will:
 
@@ -50,7 +50,7 @@ Copy `.env.example` to `.env.local` for local dev, and set the same variables in
 ## Local development
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/taste-canvas.git
+git clone https://github.com/spoony-vu/taste-canvas.git
 cd taste-canvas
 npm install
 
@@ -85,7 +85,7 @@ npm run build
 
 A companion Chrome extension lets you save any image, video, link, or page screenshot to your taste canvas with one click, a hover button, or a keyboard shortcut. It reads your backend URL + API key from its own Settings panel — each fork uses its own deployment, with no shared server.
 
-Source + install instructions: **[taste-canvas-extension](https://github.com/YOUR_USERNAME/taste-canvas-extension)**.
+Source + install instructions: **[taste-canvas-extension](https://github.com/spoony-vu/taste-canvas-extension)**.
 
 ## Mobile / PWA
 

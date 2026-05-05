@@ -34,7 +34,7 @@ That's the complete list. There are no analytics, error reporters, A/B testing s
 
 ## Browser extension
 
-The companion [Chrome extension](https://github.com/YOUR_USERNAME/taste-canvas-extension) is configured per-user — it talks ONLY to the backend URL you set in its Settings panel. The API key is stored in `chrome.storage.sync` (encrypted in transit by Google as part of profile sync) and is never sent to anyone except your backend. The extension does not phone home.
+The companion [Chrome extension](https://github.com/spoony-vu/taste-canvas-extension) is configured per-user — it talks ONLY to the backend URL you set in its Settings panel. The API key is stored in `chrome.storage.sync` (encrypted in transit by Google as part of profile sync) and is never sent to anyone except your backend. The extension does not phone home.
 
 ## What the project author can see
 
