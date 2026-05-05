@@ -2,6 +2,8 @@
 
 A self-hosted visual reference board for design inspiration — typefaces, landing pages, UI, branding, color palettes. Save images, capture URLs, organize by category. Your data lives in your own Vercel account.
 
+**[→ taste-canvas-landing.vercel.app](https://taste-canvas-landing.vercel.app)** — landing page, examples, and one-click deploy.
+
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 
 ## Why
