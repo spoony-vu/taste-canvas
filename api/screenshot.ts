@@ -33,8 +33,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const page = await browser.newPage();
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
-    await new Promise((r) => setTimeout(r, 2000));
+    // Realistic UA so Cloudflare/anti-bot pages don't redirect to a challenge.
+    await page.setUserAgent(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    );
+    // Prefer networkidle2 so JS-heavy / WebGL pages have a chance to paint
+    // their first frame. Fall back to domcontentloaded so slow-third-party
+    // sites still resolve before maxDuration. Either way we then wait
+    // 3.5s for fonts, hero images, and lazy-rendered content to settle.
+    try {
+      await page.goto(url, { waitUntil: "networkidle2", timeout: 35000 });
+    } catch {
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
+    }
+    try {
+      await page.evaluate(`
+        (async () => {
+          if (document.fonts && document.fonts.ready) {
+            await document.fonts.ready;
+          }
+          const imgs = Array.from(document.images || []);
+          await Promise.all(
+            imgs.map((img) =>
+              img.complete
+                ? null
+                : new Promise((r) => {
+                    img.addEventListener("load", r, { once: true });
+                    img.addEventListener("error", r, { once: true });
+                    setTimeout(r, 4000);
+                  })
+            )
+          );
+        })()
+      `);
+    } catch {
+      // best-effort
+    }
+    await new Promise((r) => setTimeout(r, 3500));
 
     const meta = await page.evaluate(`({
       title:
