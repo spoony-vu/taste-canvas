@@ -103,7 +103,7 @@ export function FilterBar({ active, items, filteredCount, onToggle, onClear }: F
     <div className="scrollbar-none flex items-center gap-2 overflow-x-auto sm:flex-wrap sm:overflow-x-visible">
       <button
         onClick={onClear}
-        className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-150"
+        className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-150"
         style={{
           background: allActive
             ? "var(--color-surface-3)"
@@ -131,7 +131,7 @@ export function FilterBar({ active, items, filteredCount, onToggle, onClear }: F
               initial={{ opacity: 0.6 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.12 }}
-              className="flex shrink-0 items-center gap-1 rounded-full pl-3 pr-1 py-1 text-[13px] font-medium"
+              className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full pl-3 pr-1 py-1 text-[13px] font-medium"
               style={{
                 background: "var(--color-surface-1)",
                 color: "var(--color-text-primary)",
@@ -210,7 +210,7 @@ export function FilterBar({ active, items, filteredCount, onToggle, onClear }: F
             <motion.button
               onClick={() => onToggle(cat.id)}
               whileTap={{ scale: 0.96 }}
-              className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-150"
+              className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-150"
               style={{
                 background: isActive
                   ? "var(--color-surface-3)"
