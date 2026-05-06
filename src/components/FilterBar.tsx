@@ -1,6 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { addCustomCategory, useCategories } from "../lib/categories";
+import {
+  addCustomCategory,
+  removeCustomCategory,
+  useCategories,
+} from "../lib/categories";
 import type { Category, TasteItem } from "../lib/types";
 
 interface FilterBarProps {
@@ -33,6 +37,29 @@ export function FilterBar({ active, items, filteredCount, onToggle, onClear }: F
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Which custom category is currently in "Delete?" confirmation mode.
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  // Click outside / Esc dismisses the in-flight confirmation so a pill
+  // doesn't get stuck mid-delete.
+  useEffect(() => {
+    if (!confirmingId) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setConfirmingId(null);
+    }
+    function onClick(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (!target.closest(`[data-confirm-id="${confirmingId}"]`)) {
+        setConfirmingId(null);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onClick);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onClick);
+    };
+  }, [confirmingId]);
 
   const counts = useMemo(() => {
     const map: Partial<Record<Category, number>> = {};
@@ -91,36 +118,158 @@ export function FilterBar({ active, items, filteredCount, onToggle, onClear }: F
       {visibleCategories.map((cat) => {
         const isActive = active.has(cat.id);
         const count = counts[cat.id] ?? 0;
-        return (
-          <motion.button
-            key={cat.id}
-            onClick={() => onToggle(cat.id)}
-            whileTap={{ scale: 0.96 }}
-            className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-150"
-            style={{
-              background: isActive
-                ? "var(--color-surface-3)"
-                : "var(--color-surface-1)",
-              color: isActive
-                ? "var(--color-text-primary)"
-                : "var(--color-text-tertiary)",
-            }}
-          >
-            <span
-              className="inline-block h-2 w-2 rounded-full"
+        const isCustom = !BUILT_IN_IDS.has(cat.id);
+        const isConfirming = confirmingId === cat.id;
+
+        // Confirmation morph — pill swaps to "Delete? ✓ ✗" inline.
+        if (isCustom && isConfirming) {
+          return (
+            <motion.div
+              key={cat.id}
+              data-confirm-id={cat.id}
+              layout
+              initial={{ opacity: 0.6 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.12 }}
+              className="flex shrink-0 items-center gap-1 rounded-full pl-3 pr-1 py-1 text-[13px] font-medium"
               style={{
-                background: cat.dot,
-                opacity: isActive || allActive ? 1 : 0.4,
+                background: "var(--color-surface-1)",
+                color: "var(--color-text-primary)",
+                boxShadow: "0 0 0 1.5px oklch(0.65 0.18 25)",
               }}
-            />
-            {cat.label}
-            <span
-              className="text-[11px] opacity-50"
-              style={{ fontVariantNumeric: "tabular-nums" }}
             >
-              {count}
-            </span>
-          </motion.button>
+              <span style={{ color: "var(--color-text-secondary)" }}>
+                Delete{" "}
+                <span style={{ color: "var(--color-text-primary)" }}>
+                  {cat.label}
+                </span>
+                ?
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeCustomCategory(cat.id);
+                  setConfirmingId(null);
+                }}
+                aria-label={`Confirm delete ${cat.label}`}
+                className="ml-1 flex h-6 w-6 items-center justify-center rounded-full transition-colors duration-100"
+                style={{ color: "oklch(0.65 0.18 25)" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "oklch(0.65 0.18 25 / 0.15)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M3 8l4 4 6-8"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setConfirmingId(null);
+                }}
+                aria-label="Cancel"
+                className="flex h-6 w-6 items-center justify-center rounded-full transition-colors duration-100"
+                style={{ color: "var(--color-text-tertiary)" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--color-hover)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M3 3l10 10M13 3L3 13"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </motion.div>
+          );
+        }
+
+        return (
+          <motion.div
+            key={cat.id}
+            layout
+            className="group/pill relative shrink-0"
+          >
+            <motion.button
+              onClick={() => onToggle(cat.id)}
+              whileTap={{ scale: 0.96 }}
+              className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors duration-150"
+              style={{
+                background: isActive
+                  ? "var(--color-surface-3)"
+                  : "var(--color-surface-1)",
+                color: isActive
+                  ? "var(--color-text-primary)"
+                  : "var(--color-text-tertiary)",
+                paddingRight: isCustom ? 26 : undefined,
+              }}
+            >
+              <span
+                className="inline-block h-2 w-2 rounded-full"
+                style={{
+                  background: cat.dot,
+                  opacity: isActive || allActive ? 1 : 0.4,
+                }}
+              />
+              {cat.label}
+              <span
+                className="text-[11px] opacity-50"
+                style={{ fontVariantNumeric: "tabular-nums" }}
+              >
+                {count}
+              </span>
+            </motion.button>
+            {isCustom && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setConfirmingId(cat.id);
+                }}
+                aria-label={`Delete ${cat.label}`}
+                title={`Delete ${cat.label}`}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-4 w-4 items-center justify-center rounded-full opacity-0 transition-opacity duration-100 group-hover/pill:opacity-100 focus-visible:opacity-100"
+                style={{
+                  color: "var(--color-text-tertiary)",
+                  background: "transparent",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--color-hover)";
+                  e.currentTarget.style.color = "var(--color-text-primary)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "var(--color-text-tertiary)";
+                }}
+              >
+                <svg width="9" height="9" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M3 3l10 10M13 3L3 13"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            )}
+          </motion.div>
         );
       })}
 
