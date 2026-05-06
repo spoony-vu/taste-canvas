@@ -39,9 +39,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
     // Prefer networkidle2 so JS-heavy / WebGL pages have a chance to paint
     // their first frame. Fall back to domcontentloaded so slow-third-party
-    // sites still resolve before maxDuration. The waits afterward let
-    // fonts, hero images, scroll-triggered reveals, and JS animations
-    // finish so we don't end up screenshotting an empty splash.
+    // sites still resolve before maxDuration. Either way we then wait
+    // 3.5s for fonts, hero images, and lazy-rendered content to settle.
     try {
       await page.goto(url, { waitUntil: "networkidle2", timeout: 35000 });
     } catch {
@@ -50,11 +49,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       await page.evaluate(`
         (async () => {
-          // 1. Fonts ready
           if (document.fonts && document.fonts.ready) {
             await document.fonts.ready;
           }
-          // 2. All <img> loaded (with per-image timeout)
           const imgs = Array.from(document.images || []);
           await Promise.all(
             imgs.map((img) =>
@@ -67,46 +64,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   })
             )
           );
-          // 3. Nudge IntersectionObserver-driven reveals: scroll to bottom
-          //    and back so any "appear when in view" hero animations fire.
-          //    A single rAF gives the browser a paint between scrolls.
-          const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-          const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
-          try {
-            window.scrollTo(0, document.body.scrollHeight);
-            await raf(); await wait(200);
-            window.scrollTo(0, 0);
-            await raf(); await wait(200);
-          } catch {}
-          // 4. Wait for any in-flight CSS/Web Animations to finish, capped
-          //    so infinite loops (idle marquees, ambient bg) don't block.
-          try {
-            const anims = (document.getAnimations ? document.getAnimations() : [])
-              .filter((a) => a.playState === "running");
-            const cap = wait(6000);
-            await Promise.race([
-              Promise.allSettled(anims.map((a) => a.finished)),
-              cap,
-            ]);
-          } catch {}
-          // 5. One requestIdleCallback as a final "JS is quiet" signal.
-          try {
-            await new Promise((r) => {
-              if (typeof requestIdleCallback === "function") {
-                requestIdleCallback(() => r(), { timeout: 1500 });
-              } else {
-                setTimeout(r, 600);
-              }
-            });
-          } catch {}
         })()
       `);
     } catch {
       // best-effort
     }
-    // Settle pad: a final pause so any animation that started AFTER our
-    // checks (e.g. on scroll-back) gets time to land before we shoot.
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 3500));
 
     const meta = await page.evaluate(`({
       title:
