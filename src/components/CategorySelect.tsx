@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { categories, categoryMap } from "../lib/categories";
+import { categoryMap, useCategories } from "../lib/categories";
 import type { Category } from "../lib/types";
 
 interface CategorySelectProps {
@@ -16,6 +16,7 @@ export function CategorySelect({ value, onChange, size = "default" }: CategorySe
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
   const selected = categoryMap[value];
+  const categories = useCategories();
 
   const h = size === "compact" ? "h-9" : "h-10";
   const text = size === "compact" ? "text-[13px]" : "text-[14px]";

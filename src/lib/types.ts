@@ -1,3 +1,5 @@
+// `string & {}` keeps autocomplete for the built-in literals while still
+// allowing user-defined custom category ids at runtime.
 export type Category =
   | "typeface"
   | "symbol"
@@ -7,7 +9,8 @@ export type Category =
   | "branding"
   | "ui"
   | "graphics"
-  | "tools";
+  | "tools"
+  | (string & {});
 
 export type LayoutMode = "masonry" | "grid" | "feed";
 
