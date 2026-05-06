@@ -37,39 +37,101 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await page.setUserAgent(
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     );
-    // Prefer networkidle2 so JS-heavy / WebGL pages have a chance to paint
-    // their first frame. Fall back to domcontentloaded so slow-third-party
-    // sites still resolve before maxDuration. Either way we then wait
-    // 3.5s for fonts, hero images, and lazy-rendered content to settle.
-    try {
-      await page.goto(url, { waitUntil: "networkidle2", timeout: 35000 });
-    } catch {
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
-    }
+
+    // Single navigation. networkidle2 NEVER resolves on landing pages with
+    // analytics/websockets/marquees, so don't wait for it — domcontentloaded
+    // is the only reliable signal. We never re-navigate; whatever paints
+    // before our gates trip is what we shoot.
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25000 });
+
+    // Race the `load` event with an 8s cap so SPAs that emit load late
+    // still proceed.
+    await Promise.race([
+      page.evaluate(
+        `new Promise((r) => { if (document.readyState === "complete") r(); else window.addEventListener("load", r, { once: true }); })`
+      ),
+      new Promise((r) => setTimeout(r, 8000)),
+    ]).catch(() => {});
+
     try {
       await page.evaluate(`
         (async () => {
+          // Fonts ready — fast on most sites.
           if (document.fonts && document.fonts.ready) {
-            await document.fonts.ready;
+            try { await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 4000))]); } catch {}
           }
-          const imgs = Array.from(document.images || []);
-          await Promise.all(
-            imgs.map((img) =>
-              img.complete
-                ? null
-                : new Promise((r) => {
-                    img.addEventListener("load", r, { once: true });
-                    img.addEventListener("error", r, { once: true });
-                    setTimeout(r, 4000);
-                  })
-            )
-          );
+
+          // Best-effort cookie/consent dismiss so banners don't dominate the hero.
+          try {
+            const sel = [
+              "#onetrust-accept-btn-handler",
+              "button#onetrust-accept-btn-handler",
+              "[aria-label='Accept all']",
+              "[aria-label='Accept all cookies']",
+              "[aria-label*='accept' i]",
+              "button[id*='accept' i]",
+              "button[class*='accept' i]",
+              "[data-testid*='accept' i]",
+            ];
+            for (const s of sel) {
+              const el = document.querySelector(s);
+              if (el && typeof el.click === "function") { el.click(); break; }
+            }
+          } catch {}
+
+          // Wait only for ABOVE-FOLD images (visible in viewport) — skip
+          // lazy-loaded below-fold images that won't load without scroll.
+          const vh = window.innerHeight, vw = window.innerWidth;
+          const aboveFold = Array.from(document.images || []).filter((img) => {
+            try {
+              const r = img.getBoundingClientRect();
+              return r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw && r.width > 16 && r.height > 16;
+            } catch { return false; }
+          });
+          const perImage = (img) => img.complete
+            ? Promise.resolve()
+            : new Promise((r) => {
+                img.addEventListener("load", r, { once: true });
+                img.addEventListener("error", r, { once: true });
+                setTimeout(r, 2500);
+              });
+          await Promise.race([
+            Promise.all(aboveFold.map(perImage)),
+            new Promise((r) => setTimeout(r, 5000)),
+          ]);
+
+          // Non-white pixel poll: confirm SOMETHING has painted before we
+          // shoot. If a large hero <img>/<video> in the viewport already
+          // loaded, skip the poll. Otherwise sample a 1px canvas at the
+          // viewport center every 200ms for up to 3s.
+          const heroLoaded = aboveFold.some((img) => {
+            const r = img.getBoundingClientRect();
+            return r.width > 200 && r.top < vh * 0.6 && img.complete && img.naturalWidth > 0;
+          });
+          if (!heroLoaded) {
+            const start = Date.now();
+            while (Date.now() - start < 3000) {
+              try {
+                const el = document.elementFromPoint(vw / 2, vh / 2);
+                if (el && el !== document.body && el !== document.documentElement) {
+                  const cs = getComputedStyle(el);
+                  // Anything with non-default text or non-white background is real content.
+                  if (cs.backgroundImage !== "none" || (cs.backgroundColor && !/rgba?\\(\\s*0\\s*,\\s*0\\s*,\\s*0\\s*,\\s*0\\s*\\)|rgb\\(255,\\s*255,\\s*255\\)/.test(cs.backgroundColor))) break;
+                  if ((el.textContent || "").trim().length > 4) break;
+                }
+              } catch {}
+              await new Promise((r) => setTimeout(r, 200));
+            }
+          }
         })()
       `);
     } catch {
       // best-effort
     }
-    await new Promise((r) => setTimeout(r, 3500));
+
+    // Short final settle so any animation that started during the gates
+    // gets a chance to land before we shoot.
+    await new Promise((r) => setTimeout(r, 1200));
 
     const meta = await page.evaluate(`({
       title:
