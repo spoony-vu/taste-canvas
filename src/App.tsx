@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useRef, lazy, Suspense } from "react";
-import { LayoutGroup } from "framer-motion";
+import { useState, useMemo, useCallback, useRef, lazy, Suspense, useEffect } from "react";
+import { LayoutGroup, useReducedMotion } from "framer-motion";
 import { FilterBar } from "./components/FilterBar";
 import { SearchInput } from "./components/SearchInput";
 import { CardGrid } from "./components/CardGrid";
@@ -35,6 +35,10 @@ function readStoredLayout(): LayoutMode {
   return isMobile ? "feed" : "masonry";
 }
 
+function attributeValue(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
 export default function App() {
   const { manifest, loading, addItem, addItems, removeItem, confirmDelete, restoreItem, updateItem } = useManifest();
   const [activeFilters, setActiveFilters] = useState<Set<Category>>(new Set());
@@ -44,7 +48,11 @@ export default function App() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const pendingLightboxScrollIdRef = useRef<string | null>(null);
+  const backgroundScrollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [lightboxId, setLightboxId] = useState<string | null>(null);
+  const [lightboxContextIds, setLightboxContextIds] = useState<string[]>([]);
+  const [lightboxDirection, setLightboxDirection] = useState<-1 | 0 | 1>(0);
   const lightboxItem = useMemo(
     () => (lightboxId ? manifest.items.find((i) => i.id === lightboxId) ?? null : null),
     [lightboxId, manifest.items]
@@ -52,6 +60,7 @@ export default function App() {
   const [pendingDelete, setPendingDelete] = useState<TasteItem | null>(null);
   const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(readStoredLayout);
+  const reducedMotion = useReducedMotion();
 
   useDragToScroll(layoutMode === "grid");
 
@@ -116,7 +125,120 @@ export default function App() {
     return items;
   }, [manifest.items, activeFilters, search]);
 
-  const { items: visibleItems, hasMore, sentinelRef } = useIncrementalItems(filtered);
+  const { items: visibleItems, hasMore, sentinelRef, ensureRenderedIndex } = useIncrementalItems(filtered);
+
+  const availableLightboxIds = useMemo(() => {
+    if (!lightboxId) return [];
+    const availableIds = new Set(manifest.items.map((item) => item.id));
+    return lightboxContextIds.filter((id) => availableIds.has(id));
+  }, [lightboxId, lightboxContextIds, manifest.items]);
+
+  const lightboxIndex = lightboxId ? availableLightboxIds.indexOf(lightboxId) : -1;
+  const canNavigatePrevious = lightboxIndex > 0;
+  const canNavigateNext = lightboxIndex >= 0 && lightboxIndex < availableLightboxIds.length - 1;
+
+  const handleOpenLightbox = useCallback((item: TasteItem) => {
+    setLightboxContextIds(filtered.map((filteredItem) => filteredItem.id));
+    setLightboxDirection(0);
+    setLightboxId(item.id);
+  }, [filtered]);
+
+  const handleNavigatePrevious = useCallback(() => {
+    if (!canNavigatePrevious) return;
+    setLightboxDirection(-1);
+    setLightboxId(availableLightboxIds[lightboxIndex - 1]);
+  }, [availableLightboxIds, canNavigatePrevious, lightboxIndex]);
+
+  const handleNavigateNext = useCallback(() => {
+    if (!canNavigateNext) return;
+    setLightboxDirection(1);
+    setLightboxId(availableLightboxIds[lightboxIndex + 1]);
+  }, [availableLightboxIds, canNavigateNext, lightboxIndex]);
+
+  const scrollCardIntoBackgroundView = useCallback((
+    id: string,
+    options: {
+      direction?: -1 | 0 | 1;
+      force?: boolean;
+      behavior?: ScrollBehavior;
+      block?: ScrollLogicalPosition;
+    } = {}
+  ) => {
+    const card = document.querySelector<HTMLElement>('[data-taste-card-id="' + attributeValue(id) + '"]');
+    if (!card) return false;
+    const rect = card.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const cardCenter = rect.top + rect.height / 2;
+    const comfortTop = viewportHeight * 0.28;
+    const comfortBottom = viewportHeight * 0.72;
+
+    if (!options.force && cardCenter >= comfortTop && cardCenter <= comfortBottom) {
+      return true;
+    }
+
+    if (!options.force) {
+      if (options.direction === 1 && cardCenter < comfortTop) return true;
+      if (options.direction === -1 && cardCenter > comfortBottom) return true;
+    }
+
+    card.scrollIntoView({
+      behavior: options.behavior ?? (reducedMotion ? "auto" : "smooth"),
+      block: options.block ?? "nearest",
+      inline: "nearest",
+    });
+    return true;
+  }, [reducedMotion]);
+
+  const flushPendingBackgroundScroll = useCallback((
+    options?: {
+      direction?: -1 | 0 | 1;
+      force?: boolean;
+      behavior?: ScrollBehavior;
+      block?: ScrollLogicalPosition;
+    }
+  ) => {
+    const id = pendingLightboxScrollIdRef.current;
+    if (!id) return false;
+    if (!scrollCardIntoBackgroundView(id, options)) return false;
+    pendingLightboxScrollIdRef.current = null;
+    return true;
+  }, [scrollCardIntoBackgroundView]);
+
+  const scheduleBackgroundScroll = useCallback((id: string) => {
+    pendingLightboxScrollIdRef.current = id;
+    clearTimeout(backgroundScrollTimerRef.current);
+    backgroundScrollTimerRef.current = setTimeout(() => {
+      flushPendingBackgroundScroll({ direction: lightboxDirection });
+    }, 420);
+  }, [flushPendingBackgroundScroll, lightboxDirection]);
+
+  const handleCloseLightbox = useCallback(() => {
+    if (lightboxId) {
+      clearTimeout(backgroundScrollTimerRef.current);
+      pendingLightboxScrollIdRef.current = lightboxId;
+      flushPendingBackgroundScroll({ force: true, behavior: "auto", block: "center" });
+    }
+    setLightboxId(null);
+    setLightboxContextIds([]);
+    setLightboxDirection(0);
+  }, [flushPendingBackgroundScroll, lightboxId]);
+
+  useEffect(() => {
+    if (!lightboxId || lightboxDirection === 0 || lightboxIndex < 0) return;
+    ensureRenderedIndex(lightboxIndex);
+    scheduleBackgroundScroll(lightboxId);
+  }, [ensureRenderedIndex, lightboxDirection, lightboxId, lightboxIndex, scheduleBackgroundScroll]);
+
+  useEffect(() => {
+    if (!pendingLightboxScrollIdRef.current) return;
+    clearTimeout(backgroundScrollTimerRef.current);
+    backgroundScrollTimerRef.current = setTimeout(() => {
+      flushPendingBackgroundScroll({ direction: lightboxDirection });
+    }, 120);
+    return () => clearTimeout(backgroundScrollTimerRef.current);
+  }, [flushPendingBackgroundScroll, lightboxDirection, visibleItems.length]);
+
+  useEffect(() => () => clearTimeout(backgroundScrollTimerRef.current), []);
 
   const openFileInput = useCallback(() => fileInputRef.current?.click(), []);
   const openCameraInput = useCallback(() => cameraInputRef.current?.click(), []);
@@ -169,7 +291,7 @@ export default function App() {
           totalCount={manifest.items.length}
           layoutMode={layoutMode}
           onDelete={handleDelete}
-          onZoom={(item) => setLightboxId(item.id)}
+          onZoom={handleOpenLightbox}
           onClearFilters={clearFilters}
           onUpdateCategory={(id, category) => updateItem(id, { category })}
         />
@@ -179,7 +301,13 @@ export default function App() {
         {lightboxItem && (
           <Lightbox
             item={lightboxItem}
-            onClose={() => setLightboxId(null)}
+            canNavigatePrevious={canNavigatePrevious}
+            canNavigateNext={canNavigateNext}
+            showNavigation={availableLightboxIds.length > 1}
+            navigationDirection={lightboxDirection}
+            onClose={handleCloseLightbox}
+            onPrevious={handleNavigatePrevious}
+            onNext={handleNavigateNext}
             onUpdateTags={(id, tags) => updateItem(id, { tags })}
             onUpdateCategory={(id, category) => updateItem(id, { category })}
           />

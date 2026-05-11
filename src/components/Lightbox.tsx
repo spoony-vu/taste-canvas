@@ -7,7 +7,13 @@ import type { Category, TasteItem } from "../lib/types";
 
 interface LightboxProps {
   item: TasteItem | null;
+  canNavigatePrevious?: boolean;
+  canNavigateNext?: boolean;
+  showNavigation?: boolean;
+  navigationDirection?: -1 | 0 | 1;
   onClose: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
   onUpdateTags?: (id: string, tags: string[]) => void;
   onUpdateCategory?: (id: string, category: Category) => void;
 }
@@ -29,18 +35,71 @@ const contentReveal = {
   transition: { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] as const, delay: 0.25 },
 };
 
-export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: LightboxProps) {
+const itemChangeTransition = {
+  duration: 0.28,
+  ease: [0.645, 0.045, 0.355, 1] as const,
+};
+
+const mediaChange = {
+  enter: (direction: -1 | 0 | 1) => ({
+    x: direction === 0 ? "0%" : `${direction * 100}%`,
+  }),
+  center: {
+    x: "0%",
+  },
+  exit: (direction: -1 | 0 | 1) => ({
+    x: direction === 0 ? "0%" : `${direction * -100}%`,
+  }),
+};
+
+const detailsChange = {
+  enter: (direction: -1 | 0 | 1) => ({
+    opacity: direction === 0 ? 1 : 0,
+    y: 4,
+  }),
+  center: {
+    opacity: 1,
+    y: 0,
+  },
+  exit: () => ({
+    opacity: 0,
+    y: 4,
+  }),
+};
+
+function shouldIgnoreArrowKey(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  if (target.closest("[data-lightbox-nav='true']")) return false;
+  return !!target.closest(
+    "input, textarea, select, [contenteditable='true'], video, audio, button, a, [role='button']"
+  );
+}
+
+export function Lightbox({
+  item,
+  canNavigatePrevious = false,
+  canNavigateNext = false,
+  showNavigation = false,
+  navigationDirection = 0,
+  onClose,
+  onPrevious,
+  onNext,
+  onUpdateTags,
+  onUpdateCategory,
+}: LightboxProps) {
   const [isTall, setIsTall] = useState(false);
   const [src, setSrc] = useState("");
   const [fullLoaded, setFullLoaded] = useState(false);
   const [mediaFailed, setMediaFailed] = useState(false);
-  const [videoFailed, setVideoFailed] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [closing, setClosing] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
   const reduced = useReducedMotion();
   const isVideo = !!item?.video;
+  const hasVideoPoster = !isVideo || !!item?.thumb || item?.image !== item?.video;
+  const itemId = item?.id;
 
   // Two-phase close for videos: fade out video (200ms), then unmount so poster morphs back.
   const handleCloseRequest = useCallback(() => {
@@ -60,6 +119,14 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
     return () => clearTimeout(timer);
   }, [closing, onClose]);
 
+  useEffect(() => {
+    if (!itemId) return;
+    const frame = requestAnimationFrame(() => {
+      dialogRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [itemId]);
+
   const addTag = useCallback(() => {
     const tag = tagInput.trim().toLowerCase();
     if (!tag || !item || !onUpdateTags) return;
@@ -73,11 +140,37 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
     onUpdateTags(item.id, item.tags.filter((t) => t !== tag));
   }, [item, onUpdateTags]);
 
+  const handlePreviousRequest = useCallback(() => {
+    if (!canNavigatePrevious) return;
+    setClosing(false);
+    onPrevious?.();
+  }, [canNavigatePrevious, onPrevious]);
+
+  const handleNextRequest = useCallback(() => {
+    if (!canNavigateNext) return;
+    setClosing(false);
+    onNext?.();
+  }, [canNavigateNext, onNext]);
+
   // Keyboard listener — separate effect so onClose identity changes don't reset image loading
   useEffect(() => {
     if (!item) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        handleCloseRequest();
+        return;
+      }
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (shouldIgnoreArrowKey(e.target)) return;
+      if (e.key === "ArrowLeft" && canNavigatePrevious) {
+        e.preventDefault();
+        handlePreviousRequest();
+      }
+      if (e.key === "ArrowRight" && canNavigateNext) {
+        e.preventDefault();
+        handleNextRequest();
+      }
     };
     window.addEventListener("keydown", handler);
     document.body.style.overflow = "hidden";
@@ -85,13 +178,13 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
       window.removeEventListener("keydown", handler);
       document.body.style.overflow = "";
     };
-  }, [item, onClose]);
+  }, [canNavigateNext, canNavigatePrevious, handleCloseRequest, handleNextRequest, handlePreviousRequest, item]);
 
   // Extract primitives so the effect doesn't re-run when the item object reference
   // changes (e.g. manifest refetch, tag edit) — only when a different item is opened.
-  const itemId = item?.id;
   const itemImage = item?.image;
   const itemThumb = item?.thumb;
+  const displaySrc = itemImage ? src || thumbUrl(itemThumb, itemImage) : undefined;
   const fullImageSrc = itemImage ? imageUrl(itemImage) : undefined;
 
   useEffect(() => {
@@ -101,7 +194,11 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
     setIsTall(false);
     setFullLoaded(false);
     setMediaFailed(false);
-    setVideoFailed(false);
+    if (isVideo && !hasVideoPoster) {
+      setSrc("");
+      setFullLoaded(true);
+      return;
+    }
     const thumbSrc = thumbUrl(itemThumb, itemImage);
     setSrc(thumbSrc);
     const fullSrc = imageUrl(itemImage);
@@ -135,7 +232,7 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
       img.onerror = null;
       img.src = "";
     };
-  }, [itemId, itemImage, itemThumb]);
+  }, [hasVideoPoster, isVideo, itemId, itemImage, itemThumb]);
 
   const handleImageError = useCallback(() => {
     if (fullImageSrc && src !== fullImageSrc) {
@@ -327,7 +424,6 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
         transition: "filter 0.4s ease-out",
       }
     : {};
-
   const unavailablePreview = (
     <div
       className="flex h-full min-h-[260px] w-full items-center justify-center rounded-xl"
@@ -345,6 +441,14 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
       </svg>
     </div>
   );
+
+  const navButtonClass =
+    "fixed top-1/2 z-50 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-default disabled:opacity-35 sm:h-12 sm:w-12";
+  const navButtonStyle = {
+    background: "oklch(0.22 0.01 260 / 0.92)",
+    color: "oklch(0.9 0.01 260)",
+    boxShadow: "0 10px 32px oklch(0 0 0 / 0.35)",
+  };
 
   return (
     <>
@@ -369,38 +473,62 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
         <>
           {isTall ? (
             <div
-              className="fixed inset-0 z-50 overflow-y-auto scrollbar-none"
+              ref={dialogRef}
+              tabIndex={-1}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Preview: ${item.title}`}
+              className="fixed inset-0 z-50 overflow-y-auto outline-none scrollbar-none"
               onClick={handleCloseRequest}
             >
               <div
                 className="mx-auto max-w-3xl px-4 py-16"
                 onClick={(e) => e.stopPropagation()}
               >
-                {mediaFailed || !src ? (
-                  <motion.div
-                    layoutId={`image-${item.id}`}
-                    transition={heroSpring}
-                  >
-                    {unavailablePreview}
-                  </motion.div>
-                ) : (
-                  <motion.img
-                    ref={imgRef}
-                    layoutId={`image-${item.id}`}
-                    src={src}
-                    alt={item.title}
-                    onLoad={handleLoad}
-                    onError={handleImageError}
-                    className="w-full rounded-xl"
-                    style={{ ...imageStyle, ...blurStyle }}
-                    transition={heroSpring}
-                  />
-                )}
+                <div className="relative overflow-hidden rounded-xl">
+                  <AnimatePresence custom={navigationDirection} initial={false}>
+                    {mediaFailed || !displaySrc ? (
+                      <motion.div
+                        key={item.id}
+                        custom={navigationDirection}
+                        variants={mediaChange}
+                        initial={reduced || navigationDirection === 0 ? false : "enter"}
+                        animate="center"
+                        exit={reduced || navigationDirection === 0 ? undefined : "exit"}
+                        layoutId={`image-${item.id}`}
+                        transition={navigationDirection === 0 ? heroSpring : itemChangeTransition}
+                      >
+                        {unavailablePreview}
+                      </motion.div>
+                    ) : (
+                      <motion.img
+                        key={item.id}
+                        ref={imgRef}
+                        custom={navigationDirection}
+                        variants={mediaChange}
+                        initial={reduced || navigationDirection === 0 ? false : "enter"}
+                        animate="center"
+                        exit={reduced || navigationDirection === 0 ? undefined : "exit"}
+                        layoutId={`image-${item.id}`}
+                        src={displaySrc}
+                        alt={item.title}
+                        onLoad={handleLoad}
+                        onError={handleImageError}
+                        className="w-full rounded-xl"
+                        style={{ ...imageStyle, ...blurStyle }}
+                        transition={navigationDirection === 0 ? heroSpring : itemChangeTransition}
+                      />
+                    )}
+                  </AnimatePresence>
+                </div>
                 <motion.div
+                  key={`details-${item.id}`}
+                  custom={navigationDirection}
+                  variants={detailsChange}
                   className="sticky bottom-4 mt-4 flex flex-col items-center gap-2"
-                  initial={contentReveal.initial}
-                  animate={contentReveal.animate}
-                  transition={reduced ? { duration: 0 } : contentReveal.transition}
+                  initial={reduced || navigationDirection === 0 ? contentReveal.initial : "enter"}
+                  animate={navigationDirection === 0 ? contentReveal.animate : "center"}
+                  transition={reduced ? { duration: 0 } : navigationDirection === 0 ? contentReveal.transition : itemChangeTransition}
                 >
                   <div
                     className="flex flex-col items-center gap-2 rounded-2xl px-4 py-3"
@@ -447,59 +575,91 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
             </div>
           ) : (
             <div
-              className="fixed inset-4 z-50 flex items-center justify-center"
+              ref={dialogRef}
+              tabIndex={-1}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Preview: ${item.title}`}
+              className="fixed inset-4 z-50 flex items-center justify-center outline-none"
               onClick={handleCloseRequest}
             >
               <div
                 className="relative flex max-h-full max-w-full flex-col items-center"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="relative">
-                  {mediaFailed || !src ? (
+                <div className="relative flex h-[calc(100vh-120px)] w-[calc(100vw-64px)] max-w-[1200px] items-center justify-center overflow-hidden">
+                  <AnimatePresence custom={navigationDirection} initial={false}>
                     <motion.div
-                      layoutId={`image-${item.id}`}
-                      className="h-[min(70vh,520px)] w-[min(calc(100vw-64px),960px)]"
-                      transition={heroSpring}
+                      key={item.id}
+                      custom={navigationDirection}
+                      variants={mediaChange}
+                      initial={reduced || navigationDirection === 0 ? false : "enter"}
+                      animate="center"
+                      exit={reduced || navigationDirection === 0 ? undefined : "exit"}
+                      transition={navigationDirection === 0 ? heroSpring : itemChangeTransition}
+                      className="absolute inset-0 flex items-center justify-center"
+                      style={{ willChange: "transform" }}
                     >
-                      {unavailablePreview}
+                      {mediaFailed || (!displaySrc && hasVideoPoster) ? (
+                        <motion.div
+                          layoutId={`image-${item.id}`}
+                          className="w-[min(960px,calc(100vw-64px))]"
+                          transition={navigationDirection === 0 ? heroSpring : itemChangeTransition}
+                        >
+                          {unavailablePreview}
+                        </motion.div>
+                      ) : isVideo && !hasVideoPoster ? (
+                        <motion.div
+                          layoutId={`image-${item.id}`}
+                          className="w-[min(960px,calc(100vw-64px))] rounded-xl"
+                          style={{
+                            ...imageStyle,
+                            aspectRatio: "16 / 9",
+                            background: "linear-gradient(135deg, var(--color-surface-2), var(--color-surface-3))",
+                          }}
+                          transition={navigationDirection === 0 ? heroSpring : itemChangeTransition}
+                        />
+                      ) : (
+                        <motion.img
+                          ref={isVideo ? undefined : imgRef}
+                          layoutId={`image-${item.id}`}
+                          src={displaySrc}
+                          alt={item.title}
+                          onLoad={isVideo ? undefined : handleLoad}
+                          onError={handleImageError}
+                          className="max-h-full max-w-full rounded-xl object-contain"
+                          style={{ ...imageStyle, ...(isVideo ? {} : blurStyle) }}
+                          transition={navigationDirection === 0 ? heroSpring : itemChangeTransition}
+                        />
+                      )}
+                      <AnimatePresence>
+                        {isVideo && !closing && (
+                          <motion.video
+                            key="lightbox-video"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1, transition: { duration: reduced ? 0 : 0.18, delay: reduced ? 0 : 0.08 } }}
+                            exit={{ opacity: 0, transition: { duration: reduced ? 0 : 0.16 } }}
+                            src={item.video}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            controls
+                            className="absolute inset-0 h-full w-full rounded-xl object-contain"
+                          />
+                        )}
+                      </AnimatePresence>
                     </motion.div>
-                  ) : (
-                    <motion.img
-                      ref={isVideo ? undefined : imgRef}
-                      layoutId={`image-${item.id}`}
-                      src={src}
-                      alt={item.title}
-                      onLoad={isVideo ? undefined : handleLoad}
-                      onError={handleImageError}
-                      className="max-h-[calc(100vh-120px)] max-w-[calc(100vw-64px)] rounded-xl object-contain"
-                      style={{ ...imageStyle, ...(isVideo ? {} : blurStyle) }}
-                      transition={heroSpring}
-                    />
-                  )}
-                  <AnimatePresence>
-                    {isVideo && !closing && !videoFailed && (
-                      <motion.video
-                        key="lightbox-video"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1, transition: { duration: 0.3, delay: 0.35 } }}
-                        exit={{ opacity: 0, transition: { duration: 0.2 } }}
-                        src={item.video}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        controls
-                        onError={() => setVideoFailed(true)}
-                        className="absolute inset-0 h-full w-full rounded-xl object-contain"
-                      />
-                    )}
                   </AnimatePresence>
                 </div>
                 <motion.div
+                  key={`details-${item.id}`}
+                  custom={navigationDirection}
+                  variants={detailsChange}
                   className="mt-4 flex flex-col items-center"
-                  initial={contentReveal.initial}
-                  animate={contentReveal.animate}
-                  transition={reduced ? { duration: 0 } : contentReveal.transition}
+                  initial={reduced || navigationDirection === 0 ? contentReveal.initial : "enter"}
+                  animate={navigationDirection === 0 ? contentReveal.animate : "center"}
+                  transition={reduced ? { duration: 0 } : navigationDirection === 0 ? contentReveal.transition : itemChangeTransition}
                 >
                   <div className="flex items-center gap-3">
                     <CategoryBadge
@@ -539,7 +699,9 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
 
           {/* Close button — fades in with content, not instantly */}
           <motion.button
+            type="button"
             onClick={handleCloseRequest}
+            aria-label="Close lightbox"
             className="fixed right-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-full transition-colors duration-150"
             style={{
               background: "oklch(0.22 0.01 260)",
@@ -558,6 +720,50 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
               />
             </svg>
           </motion.button>
+
+          {showNavigation && (
+            <>
+              <motion.button
+                type="button"
+                data-lightbox-nav="true"
+                aria-label="Previous item"
+                disabled={!canNavigatePrevious}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePreviousRequest();
+                }}
+                className={`${navButtonClass} left-3 sm:left-6`}
+                style={navButtonStyle}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={reduced ? { duration: 0 } : { duration: 0.15, delay: 0.2, ease: "easeOut" }}
+              >
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </motion.button>
+
+              <motion.button
+                type="button"
+                data-lightbox-nav="true"
+                aria-label="Next item"
+                disabled={!canNavigateNext}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNextRequest();
+                }}
+                className={`${navButtonClass} right-3 sm:right-6`}
+                style={navButtonStyle}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={reduced ? { duration: 0 } : { duration: 0.15, delay: 0.2, ease: "easeOut" }}
+              >
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </motion.button>
+            </>
+          )}
         </>
       )}
     </>

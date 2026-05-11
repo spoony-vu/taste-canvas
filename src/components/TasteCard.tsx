@@ -33,6 +33,7 @@ export const TasteCard = memo(function TasteCard({
 }: TasteCardProps) {
   const hasUrl = item.url && item.url.length > 0;
   const isVideo = !!item.video;
+  const hasVideoPoster = !isVideo || !!item.thumb || item.image !== item.video;
   const initialImageSrc = thumbUrl(item.thumb, item.image);
   const fullImageSrc = imageUrl(item.image);
   const [imageSrc, setImageSrc] = useState(initialImageSrc);
@@ -96,6 +97,10 @@ export const TasteCard = memo(function TasteCard({
     opacity: videoLoaded ? 1 : 0,
     transition: "opacity 0.3s ease",
   };
+  const posterPlaceholderStyle = {
+    background:
+      "linear-gradient(135deg, var(--color-surface-2), var(--color-surface-3))",
+  };
   const showUnavailable = imageFailed && (!isVideo || !videoLoaded);
   const unavailableOverlay = showUnavailable ? (
     <div
@@ -117,6 +122,7 @@ export const TasteCard = memo(function TasteCard({
   if (layoutMode === "grid") {
     return (
       <motion.div
+        data-taste-card-id={item.id}
         layout
         layoutId={item.id}
         initial={{ opacity: 0 }}
@@ -137,16 +143,25 @@ export const TasteCard = memo(function TasteCard({
         >
           {isVideo ? (
             <>
-              <motion.img
-                layoutId={imageLayoutId}
-                src={imageSrc}
-                alt={imageFailed ? "" : item.title}
-                onLoad={handleImageLoad}
-                onError={handleImageError}
-                className="h-full w-full object-cover"
-                style={imageOpacity}
-                transition={layoutTransition}
-              />
+              {hasVideoPoster ? (
+                <motion.img
+                  layoutId={imageLayoutId}
+                  src={imageSrc}
+                  alt={imageFailed ? "" : item.title}
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                  className="h-full w-full object-cover"
+                  style={imageOpacity}
+                  transition={layoutTransition}
+                />
+              ) : (
+                <motion.div
+                  layoutId={imageLayoutId}
+                  className="h-full w-full"
+                  style={posterPlaceholderStyle}
+                  transition={layoutTransition}
+                />
+              )}
               <video
                 ref={videoRef}
                 src={item.video}
@@ -204,6 +219,7 @@ export const TasteCard = memo(function TasteCard({
   if (layoutMode === "feed") {
     return (
       <motion.div
+        data-taste-card-id={item.id}
         layout
         layoutId={item.id}
         initial={{ opacity: 0, y: reduced ? 0 : 12 }}
@@ -226,16 +242,25 @@ export const TasteCard = memo(function TasteCard({
           >
             {isVideo ? (
               <>
-                <motion.img
-                  layoutId={imageLayoutId}
-                  src={imageSrc}
-                  alt={imageFailed ? "" : item.title}
-                  onLoad={handleImageLoad}
-                  onError={handleImageError}
-                  className="block w-full"
-                  style={imageOpacity}
-                  transition={layoutTransition}
-                />
+                {hasVideoPoster ? (
+                  <motion.img
+                    layoutId={imageLayoutId}
+                    src={imageSrc}
+                    alt={imageFailed ? "" : item.title}
+                    onLoad={handleImageLoad}
+                    onError={handleImageError}
+                    className="block w-full"
+                    style={imageOpacity}
+                    transition={layoutTransition}
+                  />
+                ) : (
+                  <motion.div
+                    layoutId={imageLayoutId}
+                    className="aspect-video w-full"
+                    style={posterPlaceholderStyle}
+                    transition={layoutTransition}
+                  />
+                )}
                 <video
                   ref={videoRef}
                   src={item.video}
@@ -322,6 +347,7 @@ export const TasteCard = memo(function TasteCard({
   // Default: masonry
   return (
     <motion.div
+      data-taste-card-id={item.id}
       layout
       layoutId={item.id}
       initial={{ opacity: 0, y: reduced ? 0 : 12 }}
@@ -343,16 +369,25 @@ export const TasteCard = memo(function TasteCard({
         >
           {isVideo ? (
             <>
-              <motion.img
-                layoutId={imageLayoutId}
-                src={imageSrc}
-                alt={imageFailed ? "" : item.title}
-                onLoad={handleImageLoad}
-                onError={handleImageError}
-                className="block h-full w-full object-cover"
-                style={imageOpacity}
-                transition={layoutTransition}
-              />
+              {hasVideoPoster ? (
+                <motion.img
+                  layoutId={imageLayoutId}
+                  src={imageSrc}
+                  alt={imageFailed ? "" : item.title}
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                  className="block h-full w-full object-cover"
+                  style={imageOpacity}
+                  transition={layoutTransition}
+                />
+              ) : (
+                <motion.div
+                  layoutId={imageLayoutId}
+                  className="h-full w-full"
+                  style={posterPlaceholderStyle}
+                  transition={layoutTransition}
+                />
+              )}
               <video
                 ref={videoRef}
                 src={item.video}
