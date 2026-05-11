@@ -32,18 +32,3 @@ export interface TasteItem {
 export interface Manifest {
   items: TasteItem[];
 }
-
-export interface TwitterBookmark {
-  id: string;
-  text: string;
-  authorHandle: string;
-  authorName: string;
-  authorProfileImageUrl: string;
-  postedAt: string;
-  mediaObjects: {
-    type: string;
-    url: string;
-    width: number;
-    height: number;
-  }[];
-}

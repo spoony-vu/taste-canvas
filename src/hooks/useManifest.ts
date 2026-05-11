@@ -136,19 +136,22 @@ export function useManifest() {
       return next;
     });
     try {
-      const res = await fetch("/api/manifest");
-      if (!res.ok) throw new Error(`Manifest refresh failed (${res.status})`);
-      const data = (await res.json()) as Manifest;
-      data.items = data.items.map((i) => (i.id === id ? { ...i, ...patch } : i));
       const writeRes = await fetch("/api/manifest", {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ id, patch }),
       });
       if (!writeRes.ok) throw new Error(`Update failed (${writeRes.status})`);
-      cacheManifest(data);
-      setManifest(data);
+      const updated = (await writeRes.json()) as TasteItem;
+      setManifest((prev) => {
+        const next = {
+          items: prev.items.map((i) => (i.id === id ? updated : i)),
+        };
+        cacheManifest(next);
+        return next;
+      });
       setSyncError("");
+      void fetchManifest();
     } catch (err) {
       setSyncError(String(err));
       if (previous) {
@@ -156,7 +159,7 @@ export function useManifest() {
         setManifest(previous);
       }
     }
-  }, []);
+  }, [fetchManifest]);
 
   const clearSyncError = useCallback(() => setSyncError(""), []);
 

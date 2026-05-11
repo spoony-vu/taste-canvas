@@ -36,7 +36,7 @@ function mount(path: string, modPath: string) {
   app.all(path, async (req, res) => {
     try {
       const handler = await loadHandler(modPath);
-      // Express req/res are compatible with VercelRequest/VercelResponse
+      // Express req/res are compatible with the structural API request/response
       // for the surface our handlers use (headers, query, body, status, json, setHeader)
       await handler(req, res);
     } catch (err) {

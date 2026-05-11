@@ -10,29 +10,47 @@ function compressImage(file: File): Promise<File> {
     if (file.size <= MAX_BYTES) return resolve(file);
 
     const img = new Image();
-    img.onload = () => {
-      let { width, height } = img;
-      const scale = Math.min(1, MAX_DIMENSION / Math.max(width, height));
-      width = Math.round(width * scale);
-      height = Math.round(height * scale);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0, width, height);
-
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) return reject(new Error("Compression failed"));
-          resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" }));
-        },
-        "image/webp",
-        0.85,
-      );
+    const objectUrl = URL.createObjectURL(file);
+    let revoked = false;
+    const revokeObjectUrl = () => {
+      if (revoked) return;
+      URL.revokeObjectURL(objectUrl);
+      revoked = true;
     };
-    img.onerror = () => reject(new Error("Failed to load image"));
-    img.src = URL.createObjectURL(file);
+
+    img.onload = () => {
+      try {
+        let { width, height } = img;
+        const scale = Math.min(1, MAX_DIMENSION / Math.max(width, height));
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Compression failed");
+        ctx.drawImage(img, 0, 0, width, height);
+        revokeObjectUrl();
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return reject(new Error("Compression failed"));
+            resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" }));
+          },
+          "image/webp",
+          0.85,
+        );
+      } catch (err) {
+        revokeObjectUrl();
+        reject(err);
+      }
+    };
+    img.onerror = () => {
+      revokeObjectUrl();
+      reject(new Error("Failed to load image"));
+    };
+    img.src = objectUrl;
   });
 }
 

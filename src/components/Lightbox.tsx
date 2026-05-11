@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { categories, categoryMap } from "../lib/categories";
 import { CategoryBadge } from "./CategoryBadge";
 import { imageUrl, thumbUrl } from "../lib/image";
+import { LightboxUnavailablePreview } from "./mediaStates";
 import type { Category, TasteItem } from "../lib/types";
 
 interface LightboxProps {
@@ -424,23 +425,7 @@ export function Lightbox({
         transition: "filter 0.4s ease-out",
       }
     : {};
-  const unavailablePreview = (
-    <div
-      className="flex h-full min-h-[260px] w-full items-center justify-center rounded-xl"
-      style={{
-        background: "var(--color-surface-2)",
-        color: "var(--color-text-tertiary)",
-        boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)",
-      }}
-      aria-hidden="true"
-    >
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" opacity="0.55">
-        <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M3 15l5-4 4 3 4-5 5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="8" cy="9" r="1.5" stroke="currentColor" strokeWidth="1.5" />
-      </svg>
-    </div>
-  );
+  const unavailablePreview = <LightboxUnavailablePreview />;
 
   const navButtonClass =
     "fixed top-1/2 z-50 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-default disabled:opacity-35 sm:h-12 sm:w-12";

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   addCustomCategory,
+  isBuiltInCategory,
   removeCustomCategory,
   useCategories,
 } from "../lib/categories";
@@ -14,21 +15,6 @@ interface FilterBarProps {
   onToggle: (cat: Category) => void;
   onClear: () => void;
 }
-
-// Built-in slugs — used to decide which 0-count categories to hide.
-// Custom categories are always shown so the user can find/use what they
-// just created, even before assigning items.
-const BUILT_IN_IDS = new Set([
-  "typeface",
-  "symbol",
-  "landing-pages",
-  "interactions",
-  "patterns",
-  "branding",
-  "ui",
-  "graphics",
-  "tools",
-]);
 
 export function FilterBar({ active, items, filteredCount, onToggle, onClear }: FilterBarProps) {
   const allActive = active.size === 0;
@@ -72,7 +58,7 @@ export function FilterBar({ active, items, filteredCount, onToggle, onClear }: F
   const visibleCategories = categories.filter((cat) => {
     const count = counts[cat.id] ?? 0;
     if (count > 0) return true;
-    return !BUILT_IN_IDS.has(cat.id); // custom always show
+    return !isBuiltInCategory(cat.id); // custom always show
   });
 
   function startAdd() {
@@ -118,7 +104,7 @@ export function FilterBar({ active, items, filteredCount, onToggle, onClear }: F
       {visibleCategories.map((cat) => {
         const isActive = active.has(cat.id);
         const count = counts[cat.id] ?? 0;
-        const isCustom = !BUILT_IN_IDS.has(cat.id);
+        const isCustom = !isBuiltInCategory(cat.id);
         const isConfirming = confirmingId === cat.id;
 
         // Confirmation morph — pill swaps to "Delete? ✓ ✗" inline.

@@ -1,6 +1,8 @@
-/** Resolve image path — Blob URLs pass through, relative paths get /api/images/ prefix */
+const absoluteImageSource = /^(https?:|data:image\/|blob:)/i;
+
+/** Resolve image path — absolute image sources pass through, relative paths get /api/images/ prefix */
 export function imageUrl(path: string): string {
-  if (path.startsWith("http")) return path;
+  if (absoluteImageSource.test(path) || path.startsWith("/")) return path;
   return `/api/images/${path}`;
 }
 

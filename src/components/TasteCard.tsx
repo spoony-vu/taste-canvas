@@ -2,6 +2,7 @@ import { memo, useState, useCallback, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { imageUrl, thumbUrl } from "../lib/image";
 import { CategoryBadge } from "./CategoryBadge";
+import { ImageUnavailableOverlay, VideoPlayBadge } from "./mediaStates";
 import type { Category, LayoutMode, TasteItem } from "../lib/types";
 
 interface TasteCardProps {
@@ -102,22 +103,7 @@ export const TasteCard = memo(function TasteCard({
       "linear-gradient(135deg, var(--color-surface-2), var(--color-surface-3))",
   };
   const showUnavailable = imageFailed && (!isVideo || !videoLoaded);
-  const unavailableOverlay = showUnavailable ? (
-    <div
-      className="pointer-events-none absolute inset-0 flex items-center justify-center"
-      style={{
-        background: "var(--color-surface-2)",
-        color: "var(--color-text-tertiary)",
-      }}
-      aria-hidden="true"
-    >
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" opacity="0.55">
-        <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M3 15l5-4 4 3 4-5 5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="8" cy="9" r="1.5" stroke="currentColor" strokeWidth="1.5" />
-      </svg>
-    </div>
-  ) : null;
+  const unavailableOverlay = showUnavailable ? <ImageUnavailableOverlay /> : null;
 
   if (layoutMode === "grid") {
     return (
@@ -191,16 +177,7 @@ export const TasteCard = memo(function TasteCard({
             />
           )}
           {unavailableOverlay}
-          {isVideo && (
-            <div
-              className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full transition-opacity duration-150 group-hover:opacity-0"
-              style={{ background: "oklch(0.1 0.01 260 / 0.7)" }}
-            >
-              <svg width="10" height="10" viewBox="0 0 16 16" fill="white">
-                <path d="M4 2l10 6-10 6V2z" />
-              </svg>
-            </div>
-          )}
+          {isVideo && <VideoPlayBadge size="sm" />}
           <div
             className="absolute inset-0 flex items-end p-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
             style={{
@@ -290,16 +267,7 @@ export const TasteCard = memo(function TasteCard({
               />
             )}
             {unavailableOverlay}
-            {isVideo && (
-              <div
-                className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full transition-opacity duration-150 group-hover:opacity-0"
-                style={{ background: "oklch(0.1 0.01 260 / 0.7)" }}
-              >
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
-                  <path d="M4 2l10 6-10 6V2z" />
-                </svg>
-              </div>
-            )}
+            {isVideo && <VideoPlayBadge />}
           </div>
         </button>
         <div className="flex items-center justify-between gap-2 px-1 pt-2.5">
@@ -417,16 +385,7 @@ export const TasteCard = memo(function TasteCard({
             />
           )}
           {unavailableOverlay}
-          {isVideo && (
-            <div
-              className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full transition-opacity duration-150 group-hover:opacity-0"
-              style={{ background: "oklch(0.1 0.01 260 / 0.7)" }}
-            >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
-                <path d="M4 2l10 6-10 6V2z" />
-              </svg>
-            </div>
-          )}
+          {isVideo && <VideoPlayBadge />}
           <button
             type="button"
             onClick={() => onZoom(item)}
