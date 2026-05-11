@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { put } from "@vercel/blob";
 import sharp from "sharp";
 import { isAuthorized } from "./_auth.js";
 import {
   readManifest,
   writeManifest,
+  uploadBlob,
   uploadImageWithThumb,
   sanitizeText,
   slugify,
@@ -85,14 +85,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } else {
         continue;
       }
-      const contentType = imageRes.headers.get("content-type") ?? "image/jpeg";
-      const ext = contentType.includes("png") ? "png" : "jpg";
+      const contentType = imageRes.ok
+        ? (imageRes.headers.get("content-type") ?? "image/jpeg")
+        : "image/jpeg";
+      const ext = contentType.includes("png")
+        ? "png"
+        : contentType.includes("webp")
+          ? "webp"
+          : "jpg";
       const titleText =
         tweet.text.slice(0, 80).replace(/https?:\/\/\S+/g, "").trim() ||
         `@${tweet.author.screen_name}`;
       const slug = slugify(titleText, 40);
       const date = new Date().toISOString().split("T")[0];
-      const filename = `${slug}-${date}.${ext}`;
+      const id = crypto.randomUUID().slice(0, 8);
+      const filename = `${slug}-${date}-${id}.${ext}`;
       const cat = category || "interactions";
       const blobPath = `taste/${cat}/${filename}`;
 
@@ -107,18 +114,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const videoRes = await fetch(media.url);
         if (videoRes.ok) {
           const videoBuf = Buffer.from(await videoRes.arrayBuffer());
-          const videoPath = `taste/${cat}/${slug}-${date}.mp4`;
-          const { url: uploadedVideoUrl } = await put(videoPath, videoBuf, {
-            access: "public",
-            contentType: "video/mp4",
-            addRandomSuffix: false,
-            allowOverwrite: true,
-          });
+          const videoPath = `taste/${cat}/${slug}-${date}-${id}.mp4`;
+          const { url: uploadedVideoUrl } = await uploadBlob(videoPath, videoBuf, "video/mp4");
           videoUrl = uploadedVideoUrl;
         }
       }
 
-      const id = crypto.randomUUID().slice(0, 8);
       const item: TasteItem = {
         id,
         title: titleText,

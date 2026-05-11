@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { put } from "@vercel/blob";
 import { isAuthorized } from "./_auth.js";
-import { readManifest, writeManifest, uploadImageWithThumb, slugify } from "./_storage.js";
+import { readManifest, writeManifest, uploadBlob, uploadImageWithThumb, slugify } from "./_storage.js";
 import type { TasteItem } from "../src/lib/types.js";
 
 export const config = {
@@ -74,12 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let videoUrl: string | undefined;
 
   if (isVideo) {
-    const { url: blobUrl } = await put(blobPath, fileBuffer, {
-      access: "public",
-      contentType: fileContentType,
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    });
+    const { url: blobUrl } = await uploadBlob(blobPath, fileBuffer, fileContentType);
     imageUrl = blobUrl;
     videoUrl = blobUrl;
   } else {

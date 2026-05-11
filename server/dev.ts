@@ -8,12 +8,17 @@
  */
 import express from "express";
 import cors from "cors";
+import { fileURLToPath } from "node:url";
 import type { Request, Response } from "express";
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 3002);
 
 app.use(cors());
+app.use(
+  "/local-blob",
+  express.static(fileURLToPath(new URL("../.taste-canvas-local/blobs", import.meta.url)))
+);
 // Default JSON parser; upload.ts disables body parsing itself via its config export
 app.use((req, res, next) => {
   if (req.path === "/api/upload") return next();
@@ -58,8 +63,8 @@ app.listen(PORT, () => {
   console.log(`taste-canvas dev API listening on http://localhost:${PORT}`);
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     console.warn(
-      "[warn] BLOB_READ_WRITE_TOKEN is not set — uploads and manifest writes will fail.\n" +
-        "       Add it to .env.local. See .env.example."
+      "[warn] BLOB_READ_WRITE_TOKEN is not set — using local dev storage in .taste-canvas-local.\n" +
+        "       Add it to .env.local to test against Vercel Blob. See .env.example."
     );
   }
 });

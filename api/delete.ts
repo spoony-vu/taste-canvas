@@ -1,6 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { isAuthorized } from "./_auth.js";
 import { readManifest, writeManifest, deleteBlob } from "./_storage.js";
+import type { TasteItem } from "../src/lib/types.js";
+
+function assetUrls(item: TasteItem): string[] {
+  return [item.image, item.thumb, item.video].filter(
+    (u): u is string => !!u && (u.startsWith("http") || u.startsWith("/local-blob/"))
+  );
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "DELETE") {
@@ -24,14 +31,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(404).json({ error: "Item not found" });
   }
 
-  // Delete blob assets
-  const urls = [item.image, item.thumb, item.video].filter(
-    (u): u is string => !!u && u.startsWith("http")
-  );
-  await Promise.all(urls.map(deleteBlob));
-
   manifest.items = manifest.items.filter((i) => i.id !== id);
   await writeManifest(manifest);
+
+  const remainingUrls = new Set(manifest.items.flatMap(assetUrls));
+  const urlsToDelete = [...new Set(assetUrls(item))].filter((url) => !remainingUrls.has(url));
+  await Promise.all(urlsToDelete.map(deleteBlob));
 
   return res.json({ ok: true });
 }

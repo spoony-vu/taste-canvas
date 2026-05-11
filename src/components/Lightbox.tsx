@@ -33,6 +33,8 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
   const [isTall, setIsTall] = useState(false);
   const [src, setSrc] = useState("");
   const [fullLoaded, setFullLoaded] = useState(false);
+  const [mediaFailed, setMediaFailed] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [closing, setClosing] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -90,6 +92,7 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
   const itemId = item?.id;
   const itemImage = item?.image;
   const itemThumb = item?.thumb;
+  const fullImageSrc = itemImage ? imageUrl(itemImage) : undefined;
 
   useEffect(() => {
     if (!itemId || !itemImage) return;
@@ -97,6 +100,8 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsTall(false);
     setFullLoaded(false);
+    setMediaFailed(false);
+    setVideoFailed(false);
     const thumbSrc = thumbUrl(itemThumb, itemImage);
     setSrc(thumbSrc);
     const fullSrc = imageUrl(itemImage);
@@ -111,6 +116,7 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
       if (!cancelled) {
         setSrc(fullSrc);
         setFullLoaded(true);
+        setMediaFailed(false);
       }
     };
     img.onerror = () => {
@@ -131,11 +137,23 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
     };
   }, [itemId, itemImage, itemThumb]);
 
+  const handleImageError = useCallback(() => {
+    if (fullImageSrc && src !== fullImageSrc) {
+      setSrc(fullImageSrc);
+      setFullLoaded(false);
+      return;
+    }
+
+    setFullLoaded(true);
+    setMediaFailed(true);
+  }, [fullImageSrc, src]);
+
   const handleLoad = useCallback(() => {
     const img = imgRef.current;
     if (!img) return;
     const ratio = img.naturalHeight / img.naturalWidth;
     setIsTall(ratio > 1.8);
+    setMediaFailed(false);
   }, []);
 
   const cat = item ? categoryMap[item.category] : null;
@@ -310,6 +328,24 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
       }
     : {};
 
+  const unavailablePreview = (
+    <div
+      className="flex h-full min-h-[260px] w-full items-center justify-center rounded-xl"
+      style={{
+        background: "var(--color-surface-2)",
+        color: "var(--color-text-tertiary)",
+        boxShadow: "0 32px 64px oklch(0 0 0 / 0.5)",
+      }}
+      aria-hidden="true"
+    >
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" opacity="0.55">
+        <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M3 15l5-4 4 3 4-5 5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="8" cy="9" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    </div>
+  );
+
   return (
     <>
       {/* Backdrop — fades in fast (150ms) so context establishes before layout spring settles */}
@@ -340,15 +376,26 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
                 className="mx-auto max-w-3xl px-4 py-16"
                 onClick={(e) => e.stopPropagation()}
               >
-                <motion.img
-                  ref={imgRef}
-                  layoutId={`image-${item.id}`}
-                  src={src}
-                  alt={item.title}
-                  className="w-full rounded-xl"
-                  style={{ ...imageStyle, ...blurStyle }}
-                  transition={heroSpring}
-                />
+                {mediaFailed || !src ? (
+                  <motion.div
+                    layoutId={`image-${item.id}`}
+                    transition={heroSpring}
+                  >
+                    {unavailablePreview}
+                  </motion.div>
+                ) : (
+                  <motion.img
+                    ref={imgRef}
+                    layoutId={`image-${item.id}`}
+                    src={src}
+                    alt={item.title}
+                    onLoad={handleLoad}
+                    onError={handleImageError}
+                    className="w-full rounded-xl"
+                    style={{ ...imageStyle, ...blurStyle }}
+                    transition={heroSpring}
+                  />
+                )}
                 <motion.div
                   className="sticky bottom-4 mt-4 flex flex-col items-center gap-2"
                   initial={contentReveal.initial}
@@ -408,18 +455,29 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="relative">
-                  <motion.img
-                    ref={isVideo ? undefined : imgRef}
-                    layoutId={`image-${item.id}`}
-                    src={src}
-                    alt={item.title}
-                    onLoad={isVideo ? undefined : handleLoad}
-                    className="max-h-[calc(100vh-120px)] max-w-[calc(100vw-64px)] rounded-xl object-contain"
-                    style={{ ...imageStyle, ...(isVideo ? {} : blurStyle) }}
-                    transition={heroSpring}
-                  />
+                  {mediaFailed || !src ? (
+                    <motion.div
+                      layoutId={`image-${item.id}`}
+                      className="h-[min(70vh,520px)] w-[min(calc(100vw-64px),960px)]"
+                      transition={heroSpring}
+                    >
+                      {unavailablePreview}
+                    </motion.div>
+                  ) : (
+                    <motion.img
+                      ref={isVideo ? undefined : imgRef}
+                      layoutId={`image-${item.id}`}
+                      src={src}
+                      alt={item.title}
+                      onLoad={isVideo ? undefined : handleLoad}
+                      onError={handleImageError}
+                      className="max-h-[calc(100vh-120px)] max-w-[calc(100vw-64px)] rounded-xl object-contain"
+                      style={{ ...imageStyle, ...(isVideo ? {} : blurStyle) }}
+                      transition={heroSpring}
+                    />
+                  )}
                   <AnimatePresence>
-                    {isVideo && !closing && (
+                    {isVideo && !closing && !videoFailed && (
                       <motion.video
                         key="lightbox-video"
                         initial={{ opacity: 0 }}
@@ -431,6 +489,7 @@ export function Lightbox({ item, onClose, onUpdateTags, onUpdateCategory }: Ligh
                         muted
                         playsInline
                         controls
+                        onError={() => setVideoFailed(true)}
                         className="absolute inset-0 h-full w-full rounded-xl object-contain"
                       />
                     )}

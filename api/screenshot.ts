@@ -151,13 +151,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const title = providedTitle || meta.title || hostname;
     const slug = hostname.replace(/\./g, "-");
     const date = new Date().toISOString().split("T")[0];
-    const filename = `${slug}-${date}.png`;
+    const id = crypto.randomUUID().slice(0, 8);
+    const filename = `${slug}-${date}-${id}.png`;
     const blobPath = `taste/${category}/${filename}`;
 
     const { imageUrl, thumbUrl, lqip } = await uploadImageWithThumb(blobPath, buffer, "image/png");
 
     const manifest = await readManifest();
-    const id = crypto.randomUUID().slice(0, 8);
     const item: TasteItem = {
       id,
       title,
