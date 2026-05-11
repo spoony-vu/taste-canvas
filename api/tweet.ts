@@ -103,7 +103,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const cat = category || "interactions";
       const blobPath = `taste/${cat}/${filename}`;
 
-      const { imageUrl: blobUrl, thumbUrl, lqip } = await uploadImageWithThumb(
+      const { imageUrl: blobUrl, thumbUrl, lqip, width, height } = await uploadImageWithThumb(
         blobPath,
         buffer,
         contentType
@@ -128,6 +128,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         thumb: thumbUrl,
         lqip,
         ...(videoUrl && { video: videoUrl }),
+        ...((width && height) || (media.width && media.height)
+          ? { width: width ?? media.width, height: height ?? media.height }
+          : {}),
         category: cat as TasteItem["category"],
         tags,
         added: date,

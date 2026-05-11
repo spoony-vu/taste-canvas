@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, lazy, Suspense, useEffect } from "react";
+import { useState, useMemo, useCallback, useRef, lazy, Suspense, useDeferredValue, useEffect } from "react";
 import { LayoutGroup, useReducedMotion } from "framer-motion";
 import { FilterBar } from "./components/FilterBar";
 import { SearchInput } from "./components/SearchInput";
@@ -16,6 +16,7 @@ import { UndoToast } from "./components/UndoToast";
 import { useManifest } from "./hooks/useManifest";
 import { useDragToScroll } from "./hooks/useDragToScroll";
 import { useIncrementalItems } from "./hooks/useIncrementalItems";
+import { markPerf, measurePerf } from "./lib/performance";
 import type { Category, LayoutMode, TasteItem } from "./lib/types";
 
 function acceptedFiles(files: FileList | null): File[] {
@@ -25,6 +26,7 @@ function acceptedFiles(files: FileList | null): File[] {
 }
 
 const isMobile = typeof window !== "undefined" && window.innerWidth <= 640;
+markPerf("taste:app-start");
 
 function readStoredLayout(): LayoutMode {
   try {
@@ -35,14 +37,41 @@ function readStoredLayout(): LayoutMode {
   return isMobile ? "feed" : "masonry";
 }
 
+function normalizeSearchText(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function hostFromUrl(value: string): string {
+  if (!value) return "";
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
 function attributeValue(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 export default function App() {
-  const { manifest, loading, addItem, addItems, removeItem, confirmDelete, restoreItem, updateItem } = useManifest();
+  const {
+    manifest,
+    loading,
+    refreshing,
+    syncError,
+    clearSyncError,
+    addItem,
+    addItems,
+    removeItem,
+    confirmDelete,
+    restoreItem,
+    updateItem,
+  } = useManifest();
   const [activeFilters, setActiveFilters] = useState<Set<Category>>(new Set());
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
+  const deferredFilters = useDeferredValue(activeFilters);
   const [urlModalOpen, setUrlModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -58,11 +87,22 @@ export default function App() {
     [lightboxId, manifest.items]
   );
   const [pendingDelete, setPendingDelete] = useState<TasteItem | null>(null);
-  const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(readStoredLayout);
   const reducedMotion = useReducedMotion();
 
   useDragToScroll(layoutMode === "grid");
+
+  useEffect(() => {
+    if (!syncError) return;
+    const timer = setTimeout(clearSyncError, 5000);
+    return () => clearTimeout(timer);
+  }, [clearSyncError, syncError]);
+
+  useEffect(() => {
+    if (loading) return;
+    markPerf("taste:first-useful-board");
+    measurePerf("taste:app-to-board", "taste:app-start", "taste:first-useful-board");
+  }, [loading]);
 
   const handleLayoutChange = useCallback((mode: LayoutMode) => {
     setLayoutMode(mode);
@@ -85,12 +125,11 @@ export default function App() {
 
   const handleDelete = useCallback((id: string) => {
     if (pendingDelete) {
-      clearTimeout(pendingTimerRef.current);
+      void confirmDelete(pendingDelete.id, pendingDelete);
     }
     const removed = removeItem(id);
     if (removed) {
       setPendingDelete(removed);
-      confirmDelete(id);
     }
   }, [pendingDelete, removeItem, confirmDelete]);
 
@@ -98,34 +137,43 @@ export default function App() {
     if (pendingDelete) {
       restoreItem(pendingDelete);
       setPendingDelete(null);
-      clearTimeout(pendingTimerRef.current);
     }
   }, [pendingDelete, restoreItem]);
 
   const handleExpire = useCallback(() => {
+    if (pendingDelete) {
+      void confirmDelete(pendingDelete.id, pendingDelete);
+    }
     setPendingDelete(null);
-  }, []);
+  }, [confirmDelete, pendingDelete]);
+
+  const searchableItems = useMemo(
+    () =>
+      manifest.items.map((item) => ({
+        item,
+        text: normalizeSearchText(
+          `${item.title} ${item.tags.join(" ")} ${item.category} ${hostFromUrl(item.url)}`
+        ),
+      })),
+    [manifest.items]
+  );
 
   const filtered = useMemo(() => {
-    let items = manifest.items;
+    const q = normalizeSearchText(deferredSearch);
+    const hasFilters = deferredFilters.size > 0;
 
-    if (activeFilters.size > 0) {
-      items = items.filter((item) => activeFilters.has(item.category));
-    }
+    if (!q && !hasFilters) return manifest.items;
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      items = items.filter(
-        (item) =>
-          item.title.toLowerCase().includes(q) ||
-          item.tags.some((t) => t.toLowerCase().includes(q))
-      );
-    }
-
-    return items;
-  }, [manifest.items, activeFilters, search]);
+    return searchableItems
+      .filter(({ item, text }) => {
+        if (hasFilters && !deferredFilters.has(item.category)) return false;
+        return !q || text.includes(q);
+      })
+      .map(({ item }) => item);
+  }, [deferredFilters, deferredSearch, manifest.items, searchableItems]);
 
   const { items: visibleItems, hasMore, sentinelRef, ensureRenderedIndex } = useIncrementalItems(filtered);
+  const boardSettling = search !== deferredSearch || activeFilters !== deferredFilters;
 
   const availableLightboxIds = useMemo(() => {
     if (!lightboxId) return [];
@@ -164,7 +212,7 @@ export default function App() {
       block?: ScrollLogicalPosition;
     } = {}
   ) => {
-    const card = document.querySelector<HTMLElement>('[data-taste-card-id="' + attributeValue(id) + '"]');
+    const card = document.querySelector<HTMLElement>(`[data-taste-card-id="${attributeValue(id)}"]`);
     if (!card) return false;
     const rect = card.getBoundingClientRect();
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
@@ -283,6 +331,23 @@ export default function App() {
           onClear={clearFilters}
         />
       </div>
+
+      {(refreshing || boardSettling || syncError) && (
+        <div className="pointer-events-none fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-medium"
+          style={{
+            background: syncError ? "oklch(0.26 0.08 25 / 0.92)" : "var(--color-floating-bg)",
+            boxShadow: "0 8px 24px oklch(0 0 0 / 0.25), 0 0 0 0.5px var(--color-floating-ring)",
+            color: syncError ? "oklch(0.88 0.08 25)" : "var(--color-text-secondary)",
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="h-1.5 w-1.5 rounded-full"
+            style={{ background: syncError ? "oklch(0.7 0.18 25)" : "var(--color-text-tertiary)" }}
+          />
+          {syncError ? "Sync failed. Local view restored." : boardSettling ? "Updating board" : "Refreshing"}
+        </div>
+      )}
 
       <LayoutGroup>
         <CardGrid

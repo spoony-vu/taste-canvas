@@ -105,6 +105,19 @@ export interface UploadResult {
   imageUrl: string;
   thumbUrl?: string;
   lqip?: string;
+  width?: number;
+  height?: number;
+}
+
+function normalizeDimensions(meta: sharp.Metadata): { width?: number; height?: number } {
+  if (!meta.width || !meta.height) return {};
+  const rotated =
+    typeof meta.orientation === "number" &&
+    meta.orientation >= 5 &&
+    meta.orientation <= 8;
+  return rotated
+    ? { width: meta.height, height: meta.width }
+    : { width: meta.width, height: meta.height };
 }
 
 /**
@@ -118,7 +131,8 @@ export async function uploadImageWithThumb(
 ): Promise<UploadResult> {
   const { url: imageUrl } = await uploadBlob(blobPath, buffer, contentType);
 
-  const [thumbBuf, lqipTiny] = await Promise.all([
+  const [metadata, thumbBuf, lqipTiny] = await Promise.all([
+    sharp(buffer).metadata(),
     sharp(buffer).rotate().resize(400, undefined, { withoutEnlargement: true }).webp({ quality: 65 }).toBuffer(),
     sharp(buffer).rotate().resize(20, undefined, { withoutEnlargement: true }).webp({ quality: 20 }).toBuffer(),
   ]);
@@ -128,7 +142,7 @@ export async function uploadImageWithThumb(
   const thumbPath = blobPath.replace(/\.[^.]+$/, "") + ".thumb.webp";
   const { url: thumbUrl } = await uploadBlob(thumbPath, thumbBuf, "image/webp");
 
-  return { imageUrl, thumbUrl, lqip };
+  return { imageUrl, thumbUrl, lqip, ...normalizeDimensions(metadata) };
 }
 
 /** Slugify a string for use in blob paths. */

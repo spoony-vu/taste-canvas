@@ -24,8 +24,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Missing url or category" });
   }
 
+  let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
+
   try {
-    const browser = await puppeteer.launch({
+    browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: { width: 1440, height: 900 },
       executablePath: await chromium.executablePath(),
@@ -144,6 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const screenshotBuffer = await page.screenshot({ type: "png" });
     await browser.close();
+    browser = null;
 
     const buffer = Buffer.from(screenshotBuffer);
 
@@ -155,7 +158,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const filename = `${slug}-${date}-${id}.png`;
     const blobPath = `taste/${category}/${filename}`;
 
-    const { imageUrl, thumbUrl, lqip } = await uploadImageWithThumb(blobPath, buffer, "image/png");
+    const { imageUrl, thumbUrl, lqip, width, height } = await uploadImageWithThumb(blobPath, buffer, "image/png");
 
     const manifest = await readManifest();
     const item: TasteItem = {
@@ -165,6 +168,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       image: imageUrl,
       thumb: thumbUrl,
       lqip,
+      ...(width && height && { width, height }),
       category: category as TasteItem["category"],
       tags: tags ?? [],
       added: date,
@@ -176,5 +180,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     console.error("Screenshot failed:", err);
     return res.status(500).json({ error: String(err) });
+  } finally {
+    await browser?.close().catch(() => {
+      // Browser may already be gone after a navigation/process failure.
+    });
   }
 }

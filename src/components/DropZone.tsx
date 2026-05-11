@@ -32,7 +32,7 @@ export function DropZone({ children, onAdd }: DropZoneProps) {
     setTags("");
   }, [pending]);
 
-  const { uploading, upload } = useUpload(
+  const { uploading, phase, error, upload } = useUpload(
     useCallback(
       (item: TasteItem) => {
         onAdd(item);
@@ -215,6 +215,16 @@ export function DropZone({ children, onAdd }: DropZoneProps) {
                     color: "var(--color-text-primary)",
                   }}
                 />
+                {error && (
+                  <p className="text-[13px]" style={{ color: "oklch(0.7 0.2 25)" }}>
+                    {error}
+                  </p>
+                )}
+                {uploading && phase && (
+                  <p className="text-[12px]" style={{ color: "var(--color-text-tertiary)" }}>
+                    {phase}
+                  </p>
+                )}
                 <div className="mt-1 flex justify-end gap-2">
                   <button
                     onClick={handleClose}
@@ -235,7 +245,7 @@ export function DropZone({ children, onAdd }: DropZoneProps) {
                       color: "var(--color-surface-0)",
                     }}
                   >
-                    {uploading ? "Saving..." : "Save"}
+                    {uploading ? phase || "Saving..." : "Save"}
                   </button>
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import sharp from "sharp";
 import { isAuthorized } from "./_auth.js";
 import { readManifest, writeManifest, uploadBlob, uploadImageWithThumb, slugify } from "./_storage.js";
 import type { TasteItem } from "../src/lib/types.js";
@@ -71,16 +72,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let thumbUrl: string | undefined;
   let lqip: string | undefined;
   let videoUrl: string | undefined;
+  let width: number | undefined;
+  let height: number | undefined;
 
   if (isVideo) {
     const { url: blobUrl } = await uploadBlob(blobPath, fileBuffer, fileContentType);
-    imageUrl = blobUrl;
     videoUrl = blobUrl;
+    const posterBuffer = await sharp({
+      create: {
+        width: 1280,
+        height: 720,
+        channels: 3,
+        background: { r: 25, g: 25, b: 31 },
+      },
+    })
+      .jpeg({ quality: 70 })
+      .toBuffer();
+    const posterPath = blobPath.replace(/\.[^.]+$/, "") + ".poster.jpg";
+    const poster = await uploadImageWithThumb(posterPath, posterBuffer, "image/jpeg");
+    imageUrl = poster.imageUrl;
+    thumbUrl = poster.thumbUrl;
+    lqip = poster.lqip;
+    width = poster.width;
+    height = poster.height;
   } else {
     const result = await uploadImageWithThumb(blobPath, fileBuffer, fileContentType);
     imageUrl = result.imageUrl;
     thumbUrl = result.thumbUrl;
     lqip = result.lqip;
+    width = result.width;
+    height = result.height;
   }
 
   const manifest = await readManifest();
@@ -92,6 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ...(thumbUrl && { thumb: thumbUrl }),
     ...(lqip && { lqip }),
     ...(videoUrl && { video: videoUrl }),
+    ...(width && height && { width, height }),
     category: category as TasteItem["category"],
     tags,
     added: date,

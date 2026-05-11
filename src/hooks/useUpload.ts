@@ -46,16 +46,19 @@ interface UploadParams {
 
 export function useUpload(onSuccess: (item: TasteItem) => void) {
   const [uploading, setUploading] = useState(false);
+  const [phase, setPhase] = useState("");
   const [error, setError] = useState("");
 
   const upload = useCallback(
     async ({ file, title, category, url, tags }: UploadParams) => {
       if (!file || !title) return;
       setUploading(true);
+      setPhase(file.type.startsWith("image/") && file.size > MAX_BYTES ? "Compressing image..." : "Preparing upload...");
       setError("");
 
       try {
         const compressed = await compressImage(file);
+        setPhase("Uploading...");
         const form = new FormData();
         form.append("image", compressed);
         form.append("title", title);
@@ -73,6 +76,7 @@ export function useUpload(onSuccess: (item: TasteItem) => void) {
 
         const res = await fetch("/api/upload", { method: "POST", body: form });
         if (!res.ok) throw new Error("Upload failed");
+        setPhase("Saving to board...");
         const item = await res.json();
         onSuccess(item);
       } catch (err) {
@@ -80,10 +84,11 @@ export function useUpload(onSuccess: (item: TasteItem) => void) {
         console.error(err);
       } finally {
         setUploading(false);
+        setPhase("");
       }
     },
     [onSuccess]
   );
 
-  return { uploading, error, upload };
+  return { uploading, phase, error, upload };
 }

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { AnimatePresence } from "framer-motion";
 import { TasteCard } from "./TasteCard";
 import { useImageDimensions } from "../hooks/useImageDimensions";
 import type { LayoutMode, TasteItem } from "../lib/types";
@@ -170,21 +169,19 @@ export function CardGrid({
 
   return (
     <div className="card-layout" data-mode={layoutMode}>
-      <AnimatePresence mode="popLayout">
-        {items.map((item, i) => (
-          <TasteCard
-            key={item.id}
-            item={item}
-            index={i}
-            layoutMode={layoutMode}
-            onDelete={onDelete}
-            onZoom={onZoom}
-            onUpdateCategory={onUpdateCategory}
-            masonrySpan={layoutMode === "masonry" ? getSpan(item.id) : undefined}
-            onMeasure={layoutMode === "masonry" ? register : undefined}
-          />
-        ))}
-      </AnimatePresence>
+      {items.map((item, i) => (
+        <TasteCard
+          key={item.id}
+          item={item}
+          index={i}
+          layoutMode={layoutMode}
+          onDelete={onDelete}
+          onZoom={onZoom}
+          onUpdateCategory={onUpdateCategory}
+          masonrySpan={layoutMode === "masonry" ? getSpan(item) : undefined}
+          onMeasure={layoutMode === "masonry" ? register : undefined}
+        />
+      ))}
     </div>
   );
 }
