@@ -1,8 +1,8 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { ApiRequest, ApiResponse } from "./_types.js";
 import { isAuthorized } from "./_auth.js";
-import { readManifest, writeManifest, deleteBlob } from "./_storage.js";
+import { deleteUnreferencedAssets, ManifestConflictError, removeItem } from "./_manifest.js";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "DELETE") {
     res.setHeader("Allow", "DELETE");
     return res.status(405).json({ error: "Method not allowed" });
@@ -17,21 +17,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Missing id query parameter" });
   }
 
-  const manifest = await readManifest();
-  const item = manifest.items.find((i) => i.id === id);
+  let removed;
+  let remaining;
+  try {
+    ({ removed, remaining } = await removeItem(id));
+  } catch (error) {
+    if (error instanceof ManifestConflictError) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+    throw error;
+  }
 
-  if (!item) {
+  if (!removed) {
     return res.status(404).json({ error: "Item not found" });
   }
 
-  // Delete blob assets
-  const urls = [item.image, item.thumb, item.video].filter(
-    (u): u is string => !!u && u.startsWith("http")
-  );
-  await Promise.all(urls.map(deleteBlob));
-
-  manifest.items = manifest.items.filter((i) => i.id !== id);
-  await writeManifest(manifest);
+  await deleteUnreferencedAssets(removed, remaining);
 
   return res.json({ ok: true });
 }

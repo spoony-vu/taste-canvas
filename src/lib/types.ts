@@ -22,6 +22,8 @@ export interface TasteItem {
   thumb?: string;
   lqip?: string;
   video?: string;
+  width?: number;
+  height?: number;
   category: Category;
   tags: string[];
   added: string;
@@ -29,19 +31,4 @@ export interface TasteItem {
 
 export interface Manifest {
   items: TasteItem[];
-}
-
-export interface TwitterBookmark {
-  id: string;
-  text: string;
-  authorHandle: string;
-  authorName: string;
-  authorProfileImageUrl: string;
-  postedAt: string;
-  mediaObjects: {
-    type: string;
-    url: string;
-    width: number;
-    height: number;
-  }[];
 }

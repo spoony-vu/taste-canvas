@@ -1,7 +1,8 @@
 import { memo, useState, useCallback, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { thumbUrl } from "../lib/image";
+import { imageUrl, thumbUrl } from "../lib/image";
 import { CategoryBadge } from "./CategoryBadge";
+import { ImageUnavailableOverlay, VideoPlayBadge } from "./mediaStates";
 import type { Category, LayoutMode, TasteItem } from "../lib/types";
 
 interface TasteCardProps {
@@ -33,14 +34,40 @@ export const TasteCard = memo(function TasteCard({
 }: TasteCardProps) {
   const hasUrl = item.url && item.url.length > 0;
   const isVideo = !!item.video;
-  const [loaded, setLoaded] = useState(false);
+  const hasVideoPoster = !isVideo || !!item.thumb || item.image !== item.video;
+  const initialImageSrc = thumbUrl(item.thumb, item.image);
+  const fullImageSrc = imageUrl(item.image);
+  const [imageSrc, setImageSrc] = useState(initialImageSrc);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
   const reduced = useReducedMotion();
   const videoRef = useRef<HTMLVideoElement>(null);
   const eager = index < EAGER_COUNT;
 
-  const handleLoad = useCallback(
+  const handleImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement | HTMLVideoElement>) => {
-      setLoaded(true);
+      setImageLoaded(true);
+      setImageFailed(false);
+      onMeasure?.(item.id, e.currentTarget);
+    },
+    [item.id, onMeasure]
+  );
+
+  const handleImageError = useCallback(() => {
+    if (imageSrc !== fullImageSrc) {
+      setImageSrc(fullImageSrc);
+      setImageLoaded(false);
+      return;
+    }
+
+    setImageLoaded(false);
+    setImageFailed(true);
+  }, [fullImageSrc, imageSrc]);
+
+  const handleVideoLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLVideoElement>) => {
+      setVideoLoaded(true);
       onMeasure?.(item.id, e.currentTarget);
     },
     [item.id, onMeasure]
@@ -63,10 +90,25 @@ export const TasteCard = memo(function TasteCard({
     backgroundSize: "cover",
     backgroundPosition: "center",
   } : undefined;
+  const imageOpacity = {
+    opacity: imageLoaded ? 1 : 0,
+    transition: "opacity 0.3s ease",
+  };
+  const videoOpacity = {
+    opacity: videoLoaded ? 1 : 0,
+    transition: "opacity 0.3s ease",
+  };
+  const posterPlaceholderStyle = {
+    background:
+      "linear-gradient(135deg, var(--color-surface-2), var(--color-surface-3))",
+  };
+  const showUnavailable = imageFailed && (!isVideo || !videoLoaded);
+  const unavailableOverlay = showUnavailable ? <ImageUnavailableOverlay /> : null;
 
   if (layoutMode === "grid") {
     return (
       <motion.div
+        data-taste-card-id={item.id}
         layout
         layoutId={item.id}
         initial={{ opacity: 0 }}
@@ -87,14 +129,25 @@ export const TasteCard = memo(function TasteCard({
         >
           {isVideo ? (
             <>
-              <motion.img
-                layoutId={imageLayoutId}
-                src={thumbUrl(item.thumb, item.image)}
-                alt={item.title}
-                onLoad={(e) => onMeasure?.(item.id, e.currentTarget)}
-                className="h-full w-full object-cover"
-                transition={layoutTransition}
-              />
+              {hasVideoPoster ? (
+                <motion.img
+                  layoutId={imageLayoutId}
+                  src={imageSrc}
+                  alt={imageFailed ? "" : item.title}
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                  className="h-full w-full object-cover"
+                  style={imageOpacity}
+                  transition={layoutTransition}
+                />
+              ) : (
+                <motion.div
+                  layoutId={imageLayoutId}
+                  className="h-full w-full"
+                  style={posterPlaceholderStyle}
+                  transition={layoutTransition}
+                />
+              )}
               <video
                 ref={videoRef}
                 src={item.video}
@@ -103,34 +156,28 @@ export const TasteCard = memo(function TasteCard({
                 loop
                 playsInline
                 preload="metadata"
-                onLoadedData={() => setLoaded(true)}
+                onLoadedData={handleVideoLoad}
+                onError={() => setVideoLoaded(false)}
                 className="absolute inset-0 h-full w-full object-cover"
-                style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.3s ease" }}
+                style={videoOpacity}
               />
             </>
           ) : (
             <motion.img
               layoutId={imageLayoutId}
-              src={thumbUrl(item.thumb, item.image)}
-              alt={item.title}
+              src={imageSrc}
+              alt={imageFailed ? "" : item.title}
               loading={eager ? "eager" : "lazy"}
               {...(index < 3 ? { fetchPriority: "high" as const } : {})}
-              onLoad={handleLoad}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
               className="h-full w-full object-cover"
-              style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.3s ease" }}
+              style={imageOpacity}
               transition={layoutTransition}
             />
           )}
-          {isVideo && (
-            <div
-              className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full transition-opacity duration-150 group-hover:opacity-0"
-              style={{ background: "oklch(0.1 0.01 260 / 0.7)" }}
-            >
-              <svg width="10" height="10" viewBox="0 0 16 16" fill="white">
-                <path d="M4 2l10 6-10 6V2z" />
-              </svg>
-            </div>
-          )}
+          {unavailableOverlay}
+          {isVideo && <VideoPlayBadge size="sm" />}
           <div
             className="absolute inset-0 flex items-end p-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
             style={{
@@ -149,6 +196,7 @@ export const TasteCard = memo(function TasteCard({
   if (layoutMode === "feed") {
     return (
       <motion.div
+        data-taste-card-id={item.id}
         layout
         layoutId={item.id}
         initial={{ opacity: 0, y: reduced ? 0 : 12 }}
@@ -171,14 +219,25 @@ export const TasteCard = memo(function TasteCard({
           >
             {isVideo ? (
               <>
-                <motion.img
-                  layoutId={imageLayoutId}
-                  src={thumbUrl(item.thumb, item.image)}
-                  alt={item.title}
-                  onLoad={(e) => onMeasure?.(item.id, e.currentTarget)}
-                  className="block w-full"
-                  transition={layoutTransition}
-                />
+                {hasVideoPoster ? (
+                  <motion.img
+                    layoutId={imageLayoutId}
+                    src={imageSrc}
+                    alt={imageFailed ? "" : item.title}
+                    onLoad={handleImageLoad}
+                    onError={handleImageError}
+                    className="block w-full"
+                    style={imageOpacity}
+                    transition={layoutTransition}
+                  />
+                ) : (
+                  <motion.div
+                    layoutId={imageLayoutId}
+                    className="aspect-video w-full"
+                    style={posterPlaceholderStyle}
+                    transition={layoutTransition}
+                  />
+                )}
                 <video
                   ref={videoRef}
                   src={item.video}
@@ -187,34 +246,28 @@ export const TasteCard = memo(function TasteCard({
                   loop
                   playsInline
                   preload="metadata"
-                  onLoadedData={() => setLoaded(true)}
+                  onLoadedData={handleVideoLoad}
+                  onError={() => setVideoLoaded(false)}
                   className="absolute inset-0 h-full w-full object-cover"
-                  style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.3s ease" }}
+                  style={videoOpacity}
                 />
               </>
             ) : (
               <motion.img
                 layoutId={imageLayoutId}
-                src={thumbUrl(item.thumb, item.image)}
-                alt={item.title}
+                src={imageSrc}
+                alt={imageFailed ? "" : item.title}
                 loading={eager ? "eager" : "lazy"}
                 {...(index < 3 ? { fetchPriority: "high" as const } : {})}
-                onLoad={handleLoad}
+                onLoad={handleImageLoad}
+                onError={handleImageError}
                 className="block w-full"
-                style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.3s ease" }}
+                style={imageOpacity}
                 transition={layoutTransition}
               />
             )}
-            {isVideo && (
-              <div
-                className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full transition-opacity duration-150 group-hover:opacity-0"
-                style={{ background: "oklch(0.1 0.01 260 / 0.7)" }}
-              >
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
-                  <path d="M4 2l10 6-10 6V2z" />
-                </svg>
-              </div>
-            )}
+            {unavailableOverlay}
+            {isVideo && <VideoPlayBadge />}
           </div>
         </button>
         <div className="flex items-center justify-between gap-2 px-1 pt-2.5">
@@ -262,6 +315,7 @@ export const TasteCard = memo(function TasteCard({
   // Default: masonry
   return (
     <motion.div
+      data-taste-card-id={item.id}
       layout
       layoutId={item.id}
       initial={{ opacity: 0, y: reduced ? 0 : 12 }}
@@ -276,24 +330,32 @@ export const TasteCard = memo(function TasteCard({
         ...masonryStyle,
       }}
     >
-      <button
-        onClick={() => onZoom(item)}
-        className="block h-full w-full cursor-zoom-in text-left"
-      >
+      <div className="relative h-full w-full text-left">
         <div
           className="relative h-full overflow-hidden rounded-xl"
           style={lqipBg}
         >
           {isVideo ? (
             <>
-              <motion.img
-                layoutId={imageLayoutId}
-                src={thumbUrl(item.thumb, item.image)}
-                alt={item.title}
-                onLoad={(e) => onMeasure?.(item.id, e.currentTarget)}
-                className="block h-full w-full object-cover"
-                transition={layoutTransition}
-              />
+              {hasVideoPoster ? (
+                <motion.img
+                  layoutId={imageLayoutId}
+                  src={imageSrc}
+                  alt={imageFailed ? "" : item.title}
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                  className="block h-full w-full object-cover"
+                  style={imageOpacity}
+                  transition={layoutTransition}
+                />
+              ) : (
+                <motion.div
+                  layoutId={imageLayoutId}
+                  className="h-full w-full"
+                  style={posterPlaceholderStyle}
+                  transition={layoutTransition}
+                />
+              )}
               <video
                 ref={videoRef}
                 src={item.video}
@@ -302,43 +364,43 @@ export const TasteCard = memo(function TasteCard({
                 loop
                 playsInline
                 preload="metadata"
-                onLoadedData={() => setLoaded(true)}
+                onLoadedData={handleVideoLoad}
+                onError={() => setVideoLoaded(false)}
                 className="absolute inset-0 h-full w-full object-cover"
-                style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.3s ease" }}
+                style={videoOpacity}
               />
             </>
           ) : (
             <motion.img
               layoutId={imageLayoutId}
-              src={thumbUrl(item.thumb, item.image)}
-              alt={item.title}
+              src={imageSrc}
+              alt={imageFailed ? "" : item.title}
               loading={eager ? "eager" : "lazy"}
               {...(index < 3 ? { fetchPriority: "high" as const } : {})}
-              onLoad={handleLoad}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
               className="block h-full w-full object-cover"
-              style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.3s ease" }}
+              style={imageOpacity}
               transition={layoutTransition}
             />
           )}
-          {isVideo && (
-            <div
-              className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full transition-opacity duration-150 group-hover:opacity-0"
-              style={{ background: "oklch(0.1 0.01 260 / 0.7)" }}
-            >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="white">
-                <path d="M4 2l10 6-10 6V2z" />
-              </svg>
-            </div>
-          )}
+          {unavailableOverlay}
+          {isVideo && <VideoPlayBadge />}
+          <button
+            type="button"
+            onClick={() => onZoom(item)}
+            className="absolute inset-0 z-10 block h-full w-full cursor-zoom-in"
+            aria-label={`Open ${item.title}`}
+          />
           <div
-            className="absolute inset-0 flex flex-col justify-end p-3 pt-16 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+            className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-end p-3 pt-16 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
             style={{
               background:
                 "linear-gradient(to top, oklch(0.1 0.01 260 / 0.85), transparent)",
             }}
           >
             <div className="flex items-end justify-between gap-2">
-              <div className="flex flex-col gap-1.5">
+              <div className="pointer-events-auto flex flex-col gap-1.5">
                 <CategoryBadge
                   category={item.category}
                   onUpdate={onUpdateCategory ? (c) => onUpdateCategory(item.id, c) : undefined}
@@ -347,7 +409,7 @@ export const TasteCard = memo(function TasteCard({
                   {item.title}
                 </p>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="pointer-events-auto flex items-center gap-1">
                 {hasUrl && (
                   <a
                     href={item.url}
@@ -389,7 +451,7 @@ export const TasteCard = memo(function TasteCard({
             </div>
           </div>
         </div>
-      </button>
+      </div>
     </motion.div>
   );
 });

@@ -1,15 +1,19 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { ApiRequest, ApiResponse } from "./_types.js";
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 import { isAuthorized } from "./_auth.js";
-import { readManifest, writeManifest, uploadImageWithThumb } from "./_storage.js";
+import { errorPayload, statusForError } from "./_errors.js";
+import { normalizeCategory, normalizeTags } from "./_input.js";
+import { createSafeRequestGate, assertPublicHttpUrl } from "./_url.js";
+import { deleteUnreferencedAssets, prependItems } from "./_manifest.js";
+import { uploadImageWithThumb } from "./_storage.js";
 import type { TasteItem } from "../src/lib/types.js";
 
 export const config = {
   maxDuration: 60,
 };
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed" });
@@ -19,13 +23,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const { url, title: providedTitle, category, tags } = req.body;
+  const { url, title: providedTitle, category, tags } = req.body as {
+    url?: unknown;
+    title?: unknown;
+    category?: unknown;
+    tags?: unknown;
+  };
   if (!url || !category) {
     return res.status(400).json({ error: "Missing url or category" });
   }
 
+  let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
+  let item: TasteItem | null = null;
+
   try {
-    const browser = await puppeteer.launch({
+    const safeUrl = await assertPublicHttpUrl(String(url));
+    const normalizedCategory = normalizeCategory(category);
+    const normalizedTags = normalizeTags(tags);
+    browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: { width: 1440, height: 900 },
       executablePath: await chromium.executablePath(),
@@ -33,6 +48,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const page = await browser.newPage();
+    const isAllowedRequest = createSafeRequestGate();
+    await page.setRequestInterception(true);
+    page.on("request", (request) => {
+      void isAllowedRequest(request.url()).then((allowed) => {
+        if (allowed) {
+          return request.continue().catch(() => {});
+        }
+        return request.abort("blockedbyclient").catch(() => {});
+      });
+    });
+
     // Realistic UA so Cloudflare/anti-bot pages don't redirect to a challenge.
     await page.setUserAgent(
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -42,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // analytics/websockets/marquees, so don't wait for it — domcontentloaded
     // is the only reliable signal. We never re-navigate; whatever paints
     // before our gates trip is what we shoot.
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25000 });
+    await page.goto(safeUrl.href, { waitUntil: "domcontentloaded", timeout: 25000 });
 
     // Race the `load` event with an 8s cap so SPAs that emit load late
     // still proceed.
@@ -144,37 +170,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const screenshotBuffer = await page.screenshot({ type: "png" });
     await browser.close();
+    browser = null;
 
     const buffer = Buffer.from(screenshotBuffer);
 
-    const hostname = new URL(url).hostname.replace(/^www\./, "");
-    const title = providedTitle || meta.title || hostname;
+    const hostname = safeUrl.hostname.replace(/^www\./, "");
+    const title =
+      (typeof providedTitle === "string" ? providedTitle.trim() : "") ||
+      meta.title ||
+      hostname;
     const slug = hostname.replace(/\./g, "-");
     const date = new Date().toISOString().split("T")[0];
-    const filename = `${slug}-${date}.png`;
-    const blobPath = `taste/${category}/${filename}`;
-
-    const { imageUrl, thumbUrl, lqip } = await uploadImageWithThumb(blobPath, buffer, "image/png");
-
-    const manifest = await readManifest();
     const id = crypto.randomUUID().slice(0, 8);
-    const item: TasteItem = {
+    const filename = `${slug}-${date}-${id}.png`;
+    const blobPath = `taste/${normalizedCategory}/${filename}`;
+
+    const { imageUrl, thumbUrl, lqip, width, height } = await uploadImageWithThumb(blobPath, buffer, "image/png");
+
+    item = {
       id,
       title,
-      url,
+      url: safeUrl.href,
       image: imageUrl,
       thumb: thumbUrl,
       lqip,
-      category: category as TasteItem["category"],
-      tags: tags ?? [],
+      ...(width && height && { width, height }),
+      category: normalizedCategory,
+      tags: normalizedTags,
       added: date,
     };
-    manifest.items.unshift(item);
-    await writeManifest(manifest);
+    await prependItems([item]);
 
     return res.json(item);
   } catch (err) {
     console.error("Screenshot failed:", err);
-    return res.status(500).json({ error: String(err) });
+    if (item) await deleteUnreferencedAssets(item, { items: [] }).catch(() => {});
+    return res.status(statusForError(err)).json(errorPayload(err));
+  } finally {
+    await browser?.close().catch(() => {
+      // Browser may already be gone after a navigation/process failure.
+    });
   }
 }

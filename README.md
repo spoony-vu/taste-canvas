@@ -30,7 +30,7 @@ Companion Chrome extension popup — point it at your own deployment via the Set
 
 ## Features
 
-- Save images by upload, URL screenshot, or tweet URL
+- Save images by upload, URL screenshot, or pasted tweet URL
 - Categorize by type (typeface, UI, landing pages, branding, color palette, etc.)
 - Tag and search
 - Masonry, grid, and feed layouts
@@ -45,14 +45,14 @@ React 19 · Vite 8 · TypeScript · Tailwind v4 · Framer Motion · Vercel Blob 
 
 ## Quick start: deploy to Vercel
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fspoony-vu%2Ftaste-canvas&project-name=taste-canvas&repository-name=taste-canvas&stores=%5B%7B%22type%22%3A%22blob%22%7D%5D&env=TASTE_API_KEY%2CVITE_PUBLIC_URL&envDescription=TASTE_API_KEY%20is%20any%20random%20string%20%28openssl%20rand%20-hex%2032%29.%20VITE_PUBLIC_URL%20is%20your%20deployed%20origin%20%28e.g.%20https%3A%2F%2Fyour-taste-canvas.vercel.app%29.&envLink=https%3A%2F%2Fgithub.com%2Fspoony-vu%2Ftaste-canvas%23environment-variables)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fspoony-vu%2Ftaste-canvas&project-name=taste-canvas&repository-name=taste-canvas&stores=%5B%7B%22type%22%3A%22blob%22%7D%5D&env=TASTE_API_KEY&envDescription=TASTE_API_KEY%20is%20any%20random%20string%20%28openssl%20rand%20-hex%2032%29.&envLink=https%3A%2F%2Fgithub.com%2Fspoony-vu%2Ftaste-canvas%23environment-variables)
 
 The button above will:
 
 1. Clone this repo into your GitHub account
 2. Create a new Vercel project linked to it
 3. **Auto-provision a Vercel Blob store** (this is where your images and manifest will live — only you can read/write it)
-4. Prompt you for `TASTE_API_KEY` and `VITE_PUBLIC_URL`
+4. Prompt you for `TASTE_API_KEY`
 5. Deploy
 
 After deploy, visit your site URL and start saving images. There is no signup, no shared backend, and no telemetry.
@@ -63,7 +63,7 @@ After deploy, visit your site URL and start saving images. There is no signup, n
 |------|----------|------|
 | `BLOB_READ_WRITE_TOKEN` | yes | Auto-set by the Vercel Blob integration. Don't set manually. |
 | `TASTE_API_KEY` | yes (in prod) | Bearer token used by the browser extension and any external script. Generate with `openssl rand -hex 32`. The frontend uses same-origin auth, so it doesn't need to know this value. |
-| `VITE_PUBLIC_URL` | recommended | Your deployed origin (`https://your-app.vercel.app`). Used for `og:url` and `og:image` tags. |
+| `VITE_PUBLIC_URL` | optional | Your deployed origin (`https://your-app.vercel.app`). Used for absolute social preview URLs when set; local builds fall back to `/og.png`. |
 
 Copy `.env.example` to `.env.local` for local dev, and set the same variables in **Vercel → your project → Settings → Environment Variables** for production.
 
@@ -91,7 +91,11 @@ This starts Vite on `http://localhost:5173` and a thin API adapter on `:3002`. V
 ```bash
 npm run lint
 npm run build
+npm test
+npm run test:smoke
 ```
+
+`npm run build` is the same typechecked command Vercel runs. `npm test` runs API/helper characterization tests with Vitest. `npm run test:smoke` starts an isolated local dev server on ports `5174` and `3102`, then runs a Chromium smoke test with Playwright.
 
 ## Architecture
 
@@ -100,6 +104,12 @@ npm run build
 - **`api/_storage.ts`** — Shared Blob helpers (`readManifest`, `writeManifest`, `uploadImageWithThumb`, etc.) used by every handler.
 - **`api/_auth.ts`** — Bearer-token + same-origin auth. Both paths are required: same-origin for the browser frontend, Bearer for the extension and any scripts.
 - **`src/`** — React frontend. State lives in `useManifest` hook (single source of truth on the client).
+
+## Runtime support
+
+- Node.js `>=22.12 <26`
+- npm `>=10`
+- Browser floor: Chrome/Edge 120+, Firefox 121+, Safari 17+
 
 ## Browser extension
 
@@ -137,7 +147,7 @@ This is the same value you set as a Vercel environment variable when deploying. 
 3. Find `TASTE_API_KEY` → click the eye icon to reveal → copy the value
 4. Paste into the extension's Settings → **Save**
 
-**You forgot to set it** (write endpoints will be open until you do — fix this):
+**You forgot to set it** (production write endpoints fail closed until you do):
 1. Generate one: `openssl rand -hex 32` (any random ~32+ character string works)
 2. In Vercel → Settings → Environment Variables → **Add New** → name `TASTE_API_KEY`, paste value, select all environments → **Save**
 3. **Redeploy** so the new variable takes effect (Deployments tab → latest → ⋯ → Redeploy)

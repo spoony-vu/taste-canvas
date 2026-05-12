@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+test-results
 *.local
 .vercel
 
@@ -26,3 +27,4 @@ dist-ssr
 .env*.local
 .env.production
 .gstack/
+.taste-canvas-local/

@@ -33,7 +33,7 @@ const builtInCategories: CategoryDef[] = [
     color: "oklch(0.75 0.15 200)",
     dot: "oklch(0.65 0.2 200)",
   },
-{
+  {
     id: "patterns",
     label: "Patterns",
     color: "oklch(0.75 0.15 320)",
@@ -64,6 +64,16 @@ const builtInCategories: CategoryDef[] = [
     dot: "oklch(0.65 0.2 350)",
   },
 ];
+
+const builtInCategoryIdSet = new Set(builtInCategories.map((category) => category.id));
+
+export const builtInCategoryIds: readonly Category[] = builtInCategories.map(
+  (category) => category.id
+);
+
+export function isBuiltInCategory(id: string): boolean {
+  return builtInCategoryIdSet.has(id as Category);
+}
 
 // ----- Custom categories (localStorage-backed runtime store) -----
 

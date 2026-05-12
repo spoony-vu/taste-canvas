@@ -20,6 +20,7 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
   const [category, setCategory] = useState<Category>("landing-pages");
   const [tags, setTags] = useState("");
   const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState("");
   const [fetchingTitle, setFetchingTitle] = useState(false);
   const [error, setError] = useState("");
   const urlRef = useRef<HTMLInputElement>(null);
@@ -46,6 +47,7 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
       setCategory("landing-pages");
       setTags("");
       setError("");
+      setPhase("");
       setFetchingTitle(false);
     }
   }, [open]);
@@ -83,6 +85,7 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
     if (!url) return;
 
     setLoading(true);
+    setPhase(isTweet ? "Fetching tweet media..." : "Capturing page...");
     setError("");
 
     try {
@@ -92,6 +95,7 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
         .filter(Boolean);
 
       if (isTweet) {
+        setPhase("Fetching tweet media...");
         const res = await fetch("/api/tweet", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -110,6 +114,7 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
         }
 
         const { imported } = (await res.json()) as { imported: TasteItem[] };
+        setPhase("Saving to board...");
         if (onAddItems) {
           onAddItems(imported);
         } else {
@@ -121,6 +126,7 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
 
         // Try screenshot first
         try {
+          setPhase("Capturing page...");
           const res = await fetch("/api/screenshot", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -135,11 +141,13 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
 
         // Screenshot failed — fall back to OG image
         if (!item) {
+          setPhase("Finding preview image...");
           const metaRes = await fetch(`/api/meta?url=${encodeURIComponent(url)}`);
           const meta = metaRes.ok ? await metaRes.json() : null;
 
           if (meta?.image) {
             // Fetch the OG image and upload it
+            setPhase("Uploading preview...");
             const imgRes = await fetch(meta.image);
             if (!imgRes.ok) throw new Error("Failed to fetch OG image");
             const blob = await imgRes.blob();
@@ -159,12 +167,14 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
         }
 
         onAdd(item!);
+        setPhase("Saving to board...");
         onClose();
       }
     } catch (err) {
       setError(String(err));
     } finally {
       setLoading(false);
+      setPhase("");
     }
   }
 
@@ -242,6 +252,11 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
                   {error}
                 </p>
               )}
+              {loading && phase && (
+                <p className="text-[12px]" style={{ color: "var(--color-text-tertiary)" }}>
+                  {phase}
+                </p>
+              )}
               <div className="mt-1 flex justify-end gap-2">
                 <button
                   type="button"
@@ -263,9 +278,7 @@ export function AddModal({ open, onClose, onAdd, onAddItems }: AddModalProps) {
                     color: "var(--color-surface-0)",
                   }}
                 >
-                  {loading
-                    ? isTweet ? "Importing..." : "Capturing..."
-                    : isTweet ? "Import" : "Capture"}
+                  {loading ? phase : isTweet ? "Import" : "Capture"}
                 </button>
               </div>
             </form>

@@ -24,6 +24,11 @@ export function useIncrementalItems<T>(
     setRenderedCount((prev) => Math.min(prev + batchSize, allItems.length));
   }, [batchSize, allItems.length]);
 
+  const ensureRenderedIndex = useCallback((index: number) => {
+    if (index < 0) return;
+    setRenderedCount((prev) => Math.max(prev, Math.min(index + 1, allItems.length)));
+  }, [allItems.length]);
+
   const sentinelRef = useCallback(
     (node: HTMLDivElement | null) => {
       if (observerRef.current) {
@@ -45,5 +50,5 @@ export function useIncrementalItems<T>(
 
   const items = allItems.slice(0, renderedCount);
 
-  return { items, hasMore, sentinelRef };
+  return { items, hasMore, sentinelRef, ensureRenderedIndex };
 }

@@ -39,7 +39,7 @@ export function ImageUploadModal({ open, files, onClose, onAdd }: ImageUploadMod
   const [tags, setTags] = useState("");
   const [uploadedCount, setUploadedCount] = useState(0);
 
-  const { uploading, error, upload } = useUpload(
+  const { uploading, phase, error, upload } = useUpload(
     useCallback(
       (item: TasteItem) => {
         onAdd(item);
@@ -226,6 +226,11 @@ export function ImageUploadModal({ open, files, onClose, onAdd }: ImageUploadMod
                     {error}
                   </p>
                 )}
+                {uploading && phase && (
+                  <p className="text-[12px]" style={{ color: "var(--color-text-tertiary)" }}>
+                    {phase}
+                  </p>
+                )}
                 <div className="mt-1 flex justify-end gap-2">
                   <button
                     onClick={onClose}
@@ -247,7 +252,7 @@ export function ImageUploadModal({ open, files, onClose, onAdd }: ImageUploadMod
                     }}
                   >
                     {uploading
-                      ? "Saving..."
+                      ? phase || "Saving..."
                       : queue.length > 1
                         ? `Save (${currentIndex + 1}/${queue.length})`
                         : "Save"}

@@ -9,12 +9,13 @@ import type { IncomingMessage } from "node:http";
  *  2. Same-origin requests from the deployed frontend (origin/referer host
  *     matches the request's own host header)
  *
- * If TASTE_API_KEY is unset, all requests are allowed — local dev only.
- * In production, ALWAYS set TASTE_API_KEY.
+ * If TASTE_API_KEY is unset, unauthenticated writes are allowed only in local
+ * development. Vercel/prod-like runtimes fail closed so a missing env var
+ * cannot silently expose write endpoints.
  */
 export function isAuthorized(req: IncomingMessage): boolean {
   const key = process.env.TASTE_API_KEY;
-  if (!key) return true; // open mode for local dev
+  if (!key) return allowsUnauthenticatedLocalWrites();
 
   // Bearer token (extension, scripts)
   const auth = req.headers.authorization;
@@ -31,6 +32,10 @@ export function isAuthorized(req: IncomingMessage): boolean {
   if (refererHost && refererHost === host) return true;
 
   return false;
+}
+
+function allowsUnauthenticatedLocalWrites(): boolean {
+  return process.env.VERCEL !== "1" && process.env.NODE_ENV !== "production";
 }
 
 function safeHost(value: string | string[] | undefined): string | null {

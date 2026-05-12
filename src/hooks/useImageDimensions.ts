@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
+import type { TasteItem } from "../lib/types";
 
 type Dims = { w: number; h: number };
 
@@ -44,8 +45,10 @@ export function useImageDimensions(columnWidth: number, rowHeight = 8, gapY = 16
   );
 
   const getSpan = useCallback(
-    (id: string) => {
-      const d = dims.get(id);
+    (item: TasteItem) => {
+      const d =
+        dims.get(item.id) ??
+        (item.width && item.height ? { w: item.width, h: item.height } : undefined);
       if (!d) return 30; // ~240px default before measurement
       const renderedHeight = (d.h / d.w) * columnWidth;
       return Math.max(1, Math.ceil((renderedHeight + gapY) / rowHeight));

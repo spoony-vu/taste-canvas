@@ -1,6 +1,12 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { ApiRequest, ApiResponse } from "./_types.js";
+import { errorPayload, statusForError } from "./_errors.js";
+import { fetchPublicUrlText } from "./_url.js";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+const META_TIMEOUT_MS = 5_000;
+const META_MAX_BYTES = 64 * 1024;
+const HTML_CONTENT_TYPES = [/^text\/html\b/i, /^application\/xhtml\+xml\b/i, /^$/];
+
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "Method not allowed" });
@@ -12,31 +18,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    new URL(url);
-  } catch {
-    return res.status(400).json({ error: "Invalid URL" });
-  }
-
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; TasteCanvas/1.0)",
-        Accept: "text/html",
-      },
+    const head = await fetchPublicUrlText(url, {
+      timeoutMs: META_TIMEOUT_MS,
+      maxBytes: META_MAX_BYTES,
+      accept: "text/html,application/xhtml+xml",
+      allowedContentTypes: HTML_CONTENT_TYPES,
     });
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      return res.status(502).json({ error: `Upstream returned ${response.status}` });
-    }
-
-    // Read only the first chunk (enough for <head>)
-    const text = await response.text();
-    const head = text.slice(0, 20_000);
 
     const ogTitle = head.match(
       /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i
@@ -55,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.json({ title, description, image });
   } catch (err) {
-    return res.status(502).json({ error: String(err) });
+    return res.status(statusForError(err, 502)).json(errorPayload(err));
   }
 }
 
